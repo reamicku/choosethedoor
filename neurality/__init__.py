@@ -1,4 +1,3 @@
 from .neuron import Neuron
-from .connection import Connection
-from .ntc import NTC
+from .neuroninput import NeuronInput
 from .neuralnet import NeuralNet

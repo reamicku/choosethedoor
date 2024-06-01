@@ -2,6 +2,18 @@
 
 Playing around with neurons
 
+## Architecture
+
+### NeuronInput
+
+- Weight
+- Value
+
+### Neuron
+
+- Bias
+- Value
+
 ## How it works
 
 Singular loop:

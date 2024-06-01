@@ -1,9 +1,8 @@
-from math import floor
-import numpy as np
+from .neuron import Neuron
+from .neuroninput import NeuronInput
+import math
 import random
-from .neuron import Neuron, InputNeuron, OutputNeuron
-from .connection import Connection
-from .ntc import NTC
+import numpy as np
 
 def generate_pairs(N):
     pairs = []
@@ -12,157 +11,147 @@ def generate_pairs(N):
             pairs.append((i, j))
     return pairs
 
+def generate_non_overlapping_pairs(N):
+    pairs = []
+    for i in range(1, N + 1):
+        for j in range(i + 1, N + 1):
+            pairs.append((i, j))
+            pairs.append((j, i))
+    return pairs
+
 def sigmoid(x):
     return 1/(1 + np.exp(-x))
 
-
-class NeuralNet:
-    def __init__(self, inputNeurons: int, outputNeurons: int, startingNeuronCount: int = 16, startingConnectionCount: int = 16**1.25) -> None:
-        assert startingNeuronCount > 0, "startingNeuronCount cannot be less than 1"
+class NeuralNet():
+    def __init__(self, inputNeuronCount: int, outputNeuronCount: int, neuronInitialCount: int = 64, connectionInitialCount: int = 196) -> None:
+        assert inputNeuronCount > 0, "inputNeuronCount cannot be less than 1"
+        assert outputNeuronCount > 0, "outputNeuronCount cannot be less than 1"
+        assert neuronInitialCount > 0, "neuronInitialCount cannot be less than 1"
         self.neuronList = []
-        self.connectionList = []
-        self.ntcList = []
+        self.neuronInputList = []
+        self.inputNeuronIDs = []
+        self.outputNeuronIDs = []
+        self.totalNeuronCount = inputNeuronCount + outputNeuronCount + neuronInitialCount
+        self.inputNeuronValues = []
         
-        self.startingNeuronCount = startingNeuronCount
-        self.inputNeuronList = []
-        self.inputNeuronCount = inputNeurons
-        self.outputNeuronList = []
-        self.outputNeuronCount = outputNeurons
+        selectedIDs = []
+        i = 0
+        while True:
+            randId = random.randrange(0, self.totalNeuronCount-1)
+            if randId not in selectedIDs:
+                self.inputNeuronIDs.append(randId)
+                selectedIDs.append(randId)
+                i += 1
+            if i >= inputNeuronCount: break
+        i = 0
+        while True:
+            randId = random.randrange(0, self.totalNeuronCount-1)
+            if randId not in selectedIDs:
+                self.outputNeuronIDs.append(randId)
+                selectedIDs.append(randId)
+                i += 1
+            if i >= outputNeuronCount: break
         
-        self.initializeNeurons(startingNeuronCount)
-        self.initializeConnections(floor(startingConnectionCount))
+        self.initializeNeurons(inputNeuronCount + outputNeuronCount + neuronInitialCount)
+        self.initializeNeuronConnections(connectionInitialCount)
         
-    # IO Methods
+        dummyInput = []
+        for i in range(0, inputNeuronCount): dummyInput.append(0)
+        self.setInputNeuronValues(dummyInput)
     
-    def setInput(self, inputNeuronId: int, value: float):
-        if inputNeuronId >= self.inputNeuronCount or inputNeuronId < 0:
-            # error
-            return
-        self.inputNeuronList[inputNeuronId] = value
-    
-    def setInputArray(self, value: list[float]):
-        for idx, x in enumerate(value):
-            self.input_neuron_list[idx] = x
-    
-    def getOutput(self, outputNeuronId: int):
-        pass # return self.outputNeuronList[outputNeuronId].getValue()
-    
-    def getOutputArray(self):
-        out = []
-        for outneuron in self.outputNeuronList:
-            pass # out.append(outneuron.getValue())
-        return out
-    
+    def __str__(self) -> str:
+        return f"NeuralNet(size={len(self.neuronList)}, connections={len(self.neuronInputList)}, inputCount={len(self.inputNeuronIDs)}, outputCount={len(self.outputNeuronIDs)})"
+        
     # Initialization methods
-    
-    def __isConnectedToAny(self, nIdx: int) -> Connection:
-        n = self.neuronList[nIdx]
-        for ntc in self.ntcList:
-            if ntc.neuron == n:
-                return ntc.connection
-        return None
-    
-    def __areConnected(self, nIdx1: int, nIdx2: int) -> Connection:
-        n1 = self.neuronList[nIdx1]
-        n2 = self.neuronList[nIdx2]
-        for ntc in self.ntcList:
-            if ntc.neuron == n1:
-                for ntc2 in self.ntcList:
-                    if ntc2.neuron == n2 and ntc.connection == ntc2.connection:
-                        return ntc.connection
-        return None
-
+        
     def initializeNeurons(self, n: int):
         # Create neurons
         self.neuronList = []
         for i in range(0, n):
+            # Initialize random bias
             bias = (random.random()-0.5)*2
             neuron = Neuron(b=bias)
             self.neuronList.append(neuron)
-        # Create input neurons
-        self.inputNeuronList = []
-        for i in range(0, self.inputNeuronCount):
-            neuron = InputNeuron()
-            self.inputNeuronList.append(neuron)
-        # Create output neurons
-        self.outputNeuronList = []
-        for i in range(0, self.outputNeuronCount):
-            neuron = OutputNeuron()
-            self.outputNeuronList.append(neuron)
     
-    def initializeConnections(self, n: int):
-        apc = generate_pairs(self.startingNeuronCount)
+    def initializeNeuronConnections(self, n: int):
+        apc = generate_non_overlapping_pairs(self.totalNeuronCount)
         if len(apc) < n:
             # error: more connections than possible
             return
+        
         chosenConnections = []
         # Create 'n' random connections between neurons
-        for i in range(0, n):
-            randIdx = random.randrange(0, len(apc) - 1)
-            chosenConnections.append(apc.pop(randIdx))
-        
+        i = 0
+        while True:
+            randId = random.randrange(0, len(apc) - 1 - i)
+            conArr = apc.pop(randId)
+            if (conArr[0] not in self.outputNeuronIDs) and (conArr[1] not in self.inputNeuronIDs):
+                chosenConnections.append(conArr)
+                i += 1
+            if i >= n: break
+
         for c in chosenConnections:
-            n1Idx = c[0]-1
-            n2Idx = c[1]-1
-            n1 = self.neuronList[n1Idx]
-            n2 = self.neuronList[n2Idx]
-            n1ic = self.__isConnectedToAny(n1Idx)
-            n2ic = self.__isConnectedToAny(n2Idx)
-            
-            if not (n1ic is None) or not (n2ic is None):
-                if random.random() > 1-0.08:
-                    #   Connect to a random already-existing connection between neurons
-                    # instead of creating a new one.
-                    if (n1ic is Connection and n2ic is Connection):
-                        rand = random.random()
-                        if rand < 0.5:
-                            con = n1ic
-                        else:
-                            con = n2ic
-                    elif n1ic is Connection:
-                        con = n1ic
-                    elif n2ic is Connection:
-                        con = n2ic
-                else:
-                    # Create a new connection
-                    con = Connection()
-            else:
-                # Create a new connection
-                con = Connection()
-            
-            bias1 = (random.random()-0.5)*2
-            bias2 = (random.random()-0.5)*2
-            ntc1 = NTC(n1, con, w=bias1)
-            ntc2 = NTC(n2, con, w=bias2)
-            
-            self.connectionList.append(con)
-            self.ntcList.append(ntc1)
-            self.ntcList.append(ntc2)
-    
+            nId1 = c[0]-1
+            nId2 = c[1]-1
+            incomingNeuron = self.neuronList[nId1]
+            parentNeuron = self.neuronList[nId2]
+            weight = (random.random()-0.5)*2
+            neuronInput = NeuronInput(incomingNeuron, parentNeuron, w=weight)
+            self.neuronInputList.append(neuronInput)
+        
     # Activation methods
     
-    def computeNTCValues(self):
-        for ntc in self.ntcList:
-            ntc.value = ntc.connection.value
-    
     def computeNeuronValues(self):
-        for neuron in self.neuronList:
+        for idx, neuron in enumerate(self.neuronList):
             sum = 0
-            for ntc in self.ntcList:
-                sum += ntc.value * ntc.weight
-            sum += neuron.bias
-            neuron.value = sigmoid(sum)
-
-    def resetConnectionValues(self):
-        for con in self.connectionList:
-            con.value = 0
+            if idx in self.inputNeuronIDs:
+                inidx = self.inputNeuronIDs.index(idx)
+                sum = self.inputNeuronValues[inidx]
+            else:
+                for neuronInput in self.neuronInputList:
+                    if neuronInput.parentNeuron == neuron:
+                        sum += neuronInput.value * neuronInput.weight
+                sum += neuron.bias
+            neuron.value = max(0.0, sigmoid(sum))
+            # neuron.value = sigmoid(sum)
     
-    def propagateNeuronValuesToConnections(self):
-        for ntc in self.ntcList:
-            ntc.connection.value += ntc.neuron.value
+    def computeNeuronInputValues(self):
+        for neuronInput in self.neuronInputList:
+            neuronInput.value = neuronInput.incomingNeuron.value*1.0
     
     def cycle(self):
-        self.computeNTCValues()
         self.computeNeuronValues()
-        self.resetConnectionValues()
-        self.propagateNeuronValuesToConnections()
+        self.computeNeuronInputValues()
+    
+    def setInputNeuronValues(self, array: list[float]):
+        self.inputNeuronValues = array
+    
+    def getWeights(self):
+        out = []
+        for el in self.neuronInputList: out.append(el.weight)
+        return out
+        
+    def getBiases(self):
+        out = []
+        for el in self.neuronList: out.append(el.bias)
+        return out
+
+    def getNeuronValues(self):
+        out = []
+        for el in self.neuronList: out.append(el.value)
+        return out
+
+    def getOutputNeuronValues(self):
+        out = []
+        for idx in self.outputNeuronIDs: out.append(self.neuronList[idx].value)
+        return out
+    
+    def getConnectionCountPerNeuron(self):
+        out = []
+        for neuron in self.neuronList:
+            count = 0
+            for neuronInput in self.neuronInputList:
+                if neuronInput.parentNeuron == neuron:
+                    count += 1
+            out.append(count)
+        return out
