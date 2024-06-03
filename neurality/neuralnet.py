@@ -288,7 +288,7 @@ class NeuralNet():
 
         return network
 
-    def saveNetworkImage(self, filePath: str, format: str, internalIDs: bool = False):
+    def saveNetworkImage(self, filePath: str, format: str = 'png', internalIDs: bool = False):
         """Saves an image of the neural network to a `filepath`."""
         nnNetwork = self.getNetworkArchitecture()
 
