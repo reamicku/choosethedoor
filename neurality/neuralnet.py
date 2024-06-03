@@ -23,7 +23,7 @@ class NeuralNet():
         for nIdx in range(0, inputNeuronCount):
             self.inputNeuronIDs.append(nIdx)
         
-        for nIdx in range(self.totalNeuronCount - outputNeuronCount - 1, self.totalNeuronCount):
+        for nIdx in range(self.totalNeuronCount - outputNeuronCount, self.totalNeuronCount):
             self.outputNeuronIDs.append(nIdx)
 
         self.initializeNeurons(
