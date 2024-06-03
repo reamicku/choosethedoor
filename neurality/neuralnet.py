@@ -73,7 +73,7 @@ class NeuralNet():
         # Create 'n' random connections between neurons
         i = 0
         while True:
-            randId = random.randrange(0, len(apc) - 1 - i)
+            randId = random.randrange(0, len(apc)-1)
             conArr = apc.pop(randId)
             conArrI = [conArr[0]-1, conArr[1]-1]
             if (conArrI[0] not in self.outputNeuronIDs) and (conArrI[1] not in self.inputNeuronIDs):
@@ -112,31 +112,36 @@ class NeuralNet():
             neuronInput.value = neuronInput.incomingNeuron.value
 
     def cycle(self):
+        """Performs a computation cycle for the neural net/"""
         self.computeNeuronValues()
         self.computeNeuronInputValues()
 
     def setInputNeuronValues(self, array: list[float]):
         self.inputNeuronValues = array
 
-    def getWeights(self):
+    def getWeights(self) -> list[float]:
+        """Returns an array of connection weights."""
         out = []
         for el in self.neuronInputList:
             out.append(el.weight)
         return out
 
-    def getBiases(self):
+    def getBiases(self) -> list[float]:
+        """Returns an array of neuron weights."""
         out = []
         for el in self.neuronList:
             out.append(el.bias)
         return out
 
-    def getNeuronValues(self):
+    def getNeuronValues(self) -> list[float]:
+        """Returns an array of output neurons values."""
         out = []
         for el in self.neuronList:
             out.append(el.value)
         return out
 
-    def getOutputNeuronValues(self, useSoftmax=True):
+    def getOutputNeuronValues(self, useSoftmax=True) -> np.array:
+        """Returns an array of softmaxed output neurons values."""
         out = []
         for idx in self.outputNeuronIDs:
             out.append(self.neuronList[idx].value)
@@ -144,15 +149,72 @@ class NeuralNet():
             out = softmax(np.array(out))
         return out
 
-    def getConnectionCountPerNeuron(self):
+    def getIncomingNeuronConnectionCount(self, neuronId: int) -> int:
+        """Returns neuron of id `neuronId`'s incoming connection count."""
+
+        count = 0
+        for neuronInput in self.neuronInputList:
+            if neuronInput.parentNeuron == self.neuronList[neuronId]:
+                count += 1
+        return count
+
+    def getOutcomingNeuronConnectionCount(self, neuronId: int) -> int:
+        """Returns neuron of id `neuronId`'s outcoming connection count."""
+
+        count = 0
+        for neuronInput in self.neuronInputList:
+            if neuronInput.incomingNeuron == self.neuronList[neuronId]:
+                count += 1
+        return count
+
+    def getAllIncomingNeuronConnectionCount(self) -> list[list[int, int]]:
+        """Returns an array of neuron IDs and their incoming connection count.
+
+        Example output: `[[0, 1], [1, 5], [2, 0], ...]`"""
+
         out = []
-        for neuron in self.neuronList:
-            count = 0
-            for neuronInput in self.neuronInputList:
-                if neuronInput.parentNeuron == neuron:
-                    count += 1
-            out.append(count)
+        for i, _ in enumerate(self.neuronList):
+            count = self.getIncomingNeuronConnectionCount(i)
+            out.append([i, count])
         return out
+
+    def getAllOutcomingNeuronConnectionCount(self) -> list[list[int, int]]:
+        """Returns an array of neuron IDs and their outgoing connection count.
+
+        Example output: `[[0, 1], [1, 5], [2, 0], ...]`"""
+
+        out = []
+        for i, _ in enumerate(self.neuronList):
+            count = self.getOutcomingNeuronConnectionCount(i)
+            out.append([i, count])
+        return out
+
+    def getOrphanNeurons(self):
+        """Returns an array of Orphan Neuron IDs.
+
+        Orphan Neurons are neurons that have no incoming or outcoming connections."""
+        out = []
+        incomingCount = self.getAllIncomingNeuronConnectionCount()
+        outcomingCount = self.getAllOutcomingNeuronConnectionCount()
+        for i, _ in enumerate(incomingCount):
+            if incomingCount[i][1] == 0 and outcomingCount[i][1] == 0:
+                out.append(i)
+        return out
+
+    def getPurposelessNeurons(self):
+        """Returns an array of Purposeless Neuron IDs.
+        
+        Purposeless Neurons are neurons that are not output neurons, which have no outcoming connetions."""
+        
+        out = []
+        outcomingCount = self.getAllOutcomingNeuronConnectionCount()
+        for i, _ in enumerate(outcomingCount):
+            if outcomingCount[i][1] == 0 and not (i in self.outputNeuronIDs):
+                out.append(i)
+        return out
+        
+
+    # Saving the network to an image
 
     def getNetworkArchitecture(self):
         network = {'layers': [], 'connections': []}
@@ -173,7 +235,8 @@ class NeuralNet():
         for neuron in self.neuronList:
             nId = self.neuronList.index(neuron)
             if not (nId in self.inputNeuronIDs) and not (nId in self.outputNeuronIDs):
-                hiddenNeuronIDs.append([f'H{self.neuronList.index(neuron)}', len(hiddenNeuronIDs)])
+                hiddenNeuronIDs.append(
+                    [f'H{self.neuronList.index(neuron)}', len(hiddenNeuronIDs)])
         network['layers'].append({'neurons': hiddenNeuronIDs})
 
         # insert connections
@@ -201,6 +264,7 @@ class NeuralNet():
         return network
 
     def saveNetworkImage(self, filePath: str, format: str):
+        """Saves an image of the neural network to a `filepath`."""
         nnNetwork = self.getNetworkArchitecture()
 
         # Create a new directed graph

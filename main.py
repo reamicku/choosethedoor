@@ -16,11 +16,11 @@ def randArray(size):
     return out
 
 # input neurons
-inc = 4
+inc = 2
 # output neurons
-onc = 4
+onc = 2
 # internal neurons
-nnc = 24
+nnc = 6
 # neruon connections
 nncc = nnc**1.25
 # simulation steps
@@ -29,9 +29,12 @@ iters = 64
 iarray_nchanges = 8
 
 nn = NeuralNet(inc, onc, nnc, nncc)
-nn.saveNetworkImage(filePath='output/neural_network', format='png')
+if nnc <= 64:
+    nn.saveNetworkImage(filePath='output/neural_network', format='png')
 print(nn)
 print(f"Possible pairs for {inc+onc+nnc} neurons: {len(generate_non_overlapping_pairs(inc+onc+nnc))}")
+print(f"Orphan neuron count: {len(nn.getOrphanNeurons())}")
+print(f"Purposeless neuron count: {len(nn.getPurposelessNeurons())}")
 
 inArray = randArray(inc)
 for i in range(0, iters):
