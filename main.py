@@ -16,13 +16,13 @@ def randArray(size):
     return out
 
 # input neurons
-inc = 1
+inc = 4
 # output neurons
 onc = 4
 # internal neurons
-nnc = 8  
+nnc = 24
 # neruon connections
-nncc = 24
+nncc = nnc**1.25
 # simulation steps
 iters = 64
 # change the inputs N times over the course of simulating

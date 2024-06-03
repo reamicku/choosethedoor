@@ -76,7 +76,6 @@ class NeuralNet():
             randId = random.randrange(0, len(apc) - 1 - i)
             conArr = apc.pop(randId)
             conArrI = [conArr[0]-1, conArr[1]-1]
-            print(conArrI)
             if (conArrI[0] not in self.outputNeuronIDs) and (conArrI[1] not in self.inputNeuronIDs):
                 chosenConnections.append(conArrI)
                 i += 1
@@ -160,46 +159,45 @@ class NeuralNet():
         # insert input neurons
         inputNeuronIDs = []
         for nId in self.inputNeuronIDs:
-            inputNeuronIDs.append(f'I{nId}')
+            inputNeuronIDs.append([f'I{nId}', len(inputNeuronIDs)])
         network['layers'].append({'neurons': inputNeuronIDs})
-        
+
         # insert output neurons
         outputNeuronIDs = []
         for nId in self.outputNeuronIDs:
-            outputNeuronIDs.append(f'O{nId}')
+            outputNeuronIDs.append([f'O{nId}', len(outputNeuronIDs)])
         network['layers'].append({'neurons': outputNeuronIDs})
-        
+
         # insert hidden neurons
         hiddenNeuronIDs = []
         for neuron in self.neuronList:
             nId = self.neuronList.index(neuron)
             if not (nId in self.inputNeuronIDs) and not (nId in self.outputNeuronIDs):
-                hiddenNeuronIDs.append(f'H{self.neuronList.index(neuron)}')
+                hiddenNeuronIDs.append([f'H{self.neuronList.index(neuron)}', len(hiddenNeuronIDs)])
         network['layers'].append({'neurons': hiddenNeuronIDs})
-        
+
         # insert connections
         for nc in self.neuronInputList:
             n1Id = self.neuronList.index(nc.incomingNeuron)
             n2Id = self.neuronList.index(nc.parentNeuron)
-            
+
             if n1Id in self.inputNeuronIDs:
                 n1str = f'I{n1Id}'
             elif n1Id in self.outputNeuronIDs:
                 n1str = f'O{n1Id}'
             else:
                 n1str = f'H{n1Id}'
-                
+
             if n2Id in self.inputNeuronIDs:
                 n2str = f'I{n2Id}'
             elif n2Id in self.outputNeuronIDs:
                 n2str = f'O{n2Id}'
             else:
                 n2str = f'H{n2Id}'
-            
+
             con = (n1str, n2str, nc.weight)
-            print(con)
             network['connections'].append(con)
-        
+
         return network
 
     def saveNetworkImage(self, filePath: str, format: str):
@@ -213,20 +211,25 @@ class NeuralNet():
             for neuron in layer['neurons']:
                 linewidth = 4
                 style = 'filled'
-                if 'I' in neuron:
-                    dot.node(neuron, style=style, shape='circle', color='darkgreen', fillcolor='palegreen', penwidth=f'{linewidth}')
-                elif 'O' in neuron:
-                    dot.node(neuron, style=style, shape='circle', color='darkorange', fillcolor='peachpuff', penwidth=f'{linewidth}')
+                if 'I' in neuron[0]:
+                    dot.node(neuron[0], style=style, shape='circle', color='darkgreen',
+                             fillcolor='palegreen', penwidth=f'{linewidth}', label=f'I{neuron[1]}')
+                elif 'O' in neuron[0]:
+                    dot.node(neuron[0], style=style, shape='circle', color='darkorange',
+                             fillcolor='peachpuff', penwidth=f'{linewidth}', label=f'O{neuron[1]}')
                 else:
-                    dot.node(neuron, style=style, shape='circle', color='gray40', fillcolor='gray92', penwidth=f'{linewidth}')
+                    dot.node(neuron[0], style=style, shape='circle', color='gray40',
+                             fillcolor='gray92', penwidth=f'{linewidth}', label='')
 
         # Customize edge styles
         for connection in nnNetwork['connections']:
-            linewidth = 0.5 + abs(connection[2])*1.5
+            linewidth = 0.5 + abs(connection[2])*3.5
             if connection[2] >= 0:
-                dot.edge(connection[0], connection[1], color='blue', penwidth=f'{linewidth}')
+                dot.edge(connection[0], connection[1],
+                         color='blue', penwidth=f'{linewidth}')
             else:
-                dot.edge(connection[0], connection[1], color='red', penwidth=f'{linewidth}')
+                dot.edge(connection[0], connection[1],
+                         color='red', penwidth=f'{linewidth}')
 
         # Render the graph to a PNG file
         dot.render(filePath, view=False, format=format)
