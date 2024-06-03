@@ -10,6 +10,15 @@
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal"
+        },
+        { 
+            "name": "Python: Current File with profiler",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "cProfile",
+            "args": [
+                "-o", "/tmp/tmp.prof", "${file}"
+            ]
         }
     ]
 }
