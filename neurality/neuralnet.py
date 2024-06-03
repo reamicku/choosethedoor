@@ -46,7 +46,7 @@ class NeuralNet():
 
         dummyInput = []
         for i in range(0, inputNeuronCount):
-            dummyInput.append(0)
+            dummyInput.append(0.0)
         self.setInputNeuronValues(dummyInput)
 
     def __str__(self) -> str:
@@ -94,26 +94,37 @@ class NeuralNet():
 
     # Activation methods
 
-    def computeNeuronValues(self):
+    def computeNeuronValues(self, printCalculations: bool = False):
         for idx, neuron in enumerate(self.neuronList):
             sum = 0
+            sumstr = ''
             if idx in self.inputNeuronIDs:
                 inidx = self.inputNeuronIDs.index(idx)
                 sum = self.inputNeuronValues[inidx]
+                neuron.value = sum
+                if printCalculations:
+                    print(f'id={idx}; sum = {sum:.3f}')
             else:
                 for neuronInput in self.neuronInputList:
                     if neuronInput.parentNeuron == neuron:
                         sum += neuronInput.value * neuronInput.weight
+                        if sumstr == '':
+                            sumstr = f'{neuronInput.value:.3f}*{neuronInput.weight:.3f}'
+                        else:
+                            sumstr += f' + {neuronInput.value:.3f}*{neuronInput.weight:.3f}'
+                if sum == 0: sumstr = '0'
                 sum += neuron.bias
-            neuron.value = neuron.activation_fn(sum)
+                if printCalculations:
+                    print(f'id={idx}; sum = {sumstr} + b = {sum:.3f} -> act(sum) = {neuron.activation_fn(sum):.3f}')
+                neuron.value = neuron.activation_fn(sum)
 
     def computeNeuronInputValues(self):
         for neuronInput in self.neuronInputList:
             neuronInput.value = neuronInput.incomingNeuron.value
 
-    def cycle(self):
+    def cycle(self, printCalculations: bool = False):
         """Performs a computation cycle for the neural net/"""
-        self.computeNeuronValues()
+        self.computeNeuronValues(printCalculations=printCalculations)
         self.computeNeuronInputValues()
 
     def setInputNeuronValues(self, array: list[float]):
@@ -263,7 +274,7 @@ class NeuralNet():
 
         return network
 
-    def saveNetworkImage(self, filePath: str, format: str):
+    def saveNetworkImage(self, filePath: str, format: str, internalIDs: bool = False):
         """Saves an image of the neural network to a `filepath`."""
         nnNetwork = self.getNetworkArchitecture()
 
@@ -275,15 +286,22 @@ class NeuralNet():
             for neuron in layer['neurons']:
                 linewidth = 4
                 style = 'filled'
+                label=None
                 if 'I' in neuron[0]:
+                    if not internalIDs: 
+                        label=f'I{neuron[1]}'
                     dot.node(neuron[0], style=style, shape='circle', color='darkgreen',
-                             fillcolor='palegreen', penwidth=f'{linewidth}', label=f'I{neuron[1]}')
+                             fillcolor='palegreen', penwidth=f'{linewidth}', label=label)
                 elif 'O' in neuron[0]:
+                    if not internalIDs: 
+                        label=f'O{neuron[1]}'
                     dot.node(neuron[0], style=style, shape='circle', color='darkorange',
-                             fillcolor='peachpuff', penwidth=f'{linewidth}', label=f'O{neuron[1]}')
+                             fillcolor='peachpuff', penwidth=f'{linewidth}', label=label)
                 else:
+                    if not internalIDs:
+                        label = ''
                     dot.node(neuron[0], style=style, shape='circle', color='gray40',
-                             fillcolor='gray92', penwidth=f'{linewidth}', label='')
+                             fillcolor='gray92', penwidth=f'{linewidth}', label=label)
 
         # Customize edge styles
         for connection in nnNetwork['connections']:

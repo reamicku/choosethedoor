@@ -30,7 +30,7 @@ iarray_nchanges = 8
 
 nn = NeuralNet(inc, onc, nnc, nncc)
 if nnc <= 64:
-    nn.saveNetworkImage(filePath='output/neural_network', format='png')
+    nn.saveNetworkImage(filePath='output/neural_network', format='png', internalIDs=False)
 print(nn)
 print(f"Possible pairs for {inc+onc+nnc} neurons: {len(generate_non_overlapping_pairs(inc+onc+nnc))}")
 print(f"Orphan neuron count: {len(nn.getOrphanNeurons())}")
@@ -40,6 +40,6 @@ inArray = randArray(inc)
 for i in range(0, iters):
     if i%(math.ceil(iters/iarray_nchanges))==0: inArray = randArray(inc)
     nn.setInputNeuronValues(inArray)
-    nn.cycle()
+    nn.cycle(printCalculations=False)
     if i%(math.ceil(iters/iarray_nchanges))==math.ceil(iters/iarray_nchanges)-1:
         print(f"Cycle: {i+1}\tIN: {roundArray(inArray, 3)}\tOUT: {roundArray(nn.getOutputNeuronValues(), 3)}")
