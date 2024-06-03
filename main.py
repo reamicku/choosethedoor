@@ -22,21 +22,21 @@ onc = 4
 # internal neurons
 nnc = 8  
 # neruon connections
-nncc = 64
+nncc = 24
 # simulation steps
-iters = 256
+iters = 64
 # change the inputs N times over the course of simulating
-iarray_nchanges = 4
+iarray_nchanges = 8
 
-nn = NeuralNet(inc, onc, nnc, math.floor(nnc**1.5))
+nn = NeuralNet(inc, onc, nnc, nncc)
+nn.saveNetworkImage(filePath='output/neural_network', format='png')
 print(nn)
 print(f"Possible pairs for {inc+onc+nnc} neurons: {len(generate_non_overlapping_pairs(inc+onc+nnc))}")
 
 inArray = randArray(inc)
-
 for i in range(0, iters):
     if i%(math.ceil(iters/iarray_nchanges))==0: inArray = randArray(inc)
     nn.setInputNeuronValues(inArray)
     nn.cycle()
-    if i%(math.ceil(iters/iarray_nchanges))==math.ceil(iters/iarray_nchanges)-1 or i==0:
+    if i%(math.ceil(iters/iarray_nchanges))==math.ceil(iters/iarray_nchanges)-1:
         print(f"Cycle: {i+1}\tIN: {roundArray(inArray, 3)}\tOUT: {roundArray(nn.getOutputNeuronValues(), 3)}")

@@ -2,6 +2,23 @@
 
 Playing around with neurons
 
+## Setup
+
+Install dependencies:
+
+```bash
+sudo apt install python3.10 graphviz
+```
+
+Create python virtual environment:
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python3.10 main.py
+```
+
 ## Architecture
 
 ### NeuronConnection
