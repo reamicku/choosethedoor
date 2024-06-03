@@ -20,25 +20,11 @@ class NeuralNet():
             outputNeuronCount + neuronInitialCount
         self.inputNeuronValues = []
 
-        selectedIDs = []
-        i = 0
-        while True:
-            randId = random.randrange(0, self.totalNeuronCount-1)
-            if randId not in selectedIDs:
-                self.inputNeuronIDs.append(randId)
-                selectedIDs.append(randId)
-                i += 1
-            if i >= inputNeuronCount:
-                break
-        i = 0
-        while True:
-            randId = random.randrange(0, self.totalNeuronCount-1)
-            if randId not in selectedIDs:
-                self.outputNeuronIDs.append(randId)
-                selectedIDs.append(randId)
-                i += 1
-            if i >= outputNeuronCount:
-                break
+        for nIdx in range(0, inputNeuronCount):
+            self.inputNeuronIDs.append(nIdx)
+        
+        for nIdx in range(self.totalNeuronCount - outputNeuronCount - 1, self.totalNeuronCount):
+            self.outputNeuronIDs.append(nIdx)
 
         self.initializeNeurons(
             inputNeuronCount + outputNeuronCount + neuronInitialCount)
