@@ -2,6 +2,16 @@
 
 Playing around with neurons
 
+- [Neurality](#neurality)
+  - [Setup](#setup)
+  - [Architecture](#architecture)
+    - [NeuronConnection](#neuronconnection)
+    - [Neuron](#neuron)
+  - [How it works](#how-it-works)
+  - [Evolution simulation](#evolution-simulation)
+    - [Variables](#variables)
+  - [TODO](#todo)
+
 ## Setup
 
 Install dependencies:
@@ -40,16 +50,6 @@ Singular loop:
   - Connections value reset to 0
   - Neuron add the value to the active connection value.
 
-## TODO
-
-Lay out them into different numpy arrays:
-  - W (weights)
-  - B (biases)
-  - I (neuron input values)
-  - O (neuron output values)
-
-And then compute.
-
 ## Evolution simulation
 
 Creatures will spawn in a room with 5 doors. A creature can choose from 3 grey doors, 1 green door and 1 red door:
@@ -79,3 +79,11 @@ Door type | Value
 Red | `-1.0`
 Gray | `0.0`
 Green | `1.0`
+
+## TODO
+
+- Optimize performance of creating networks
+- Optimize performance of computing
+- Add a function to return a list of disconnected inputs (array of neuron ids)
+- Add a function to return a list of disconnected outputs (array of neuron ids)
+- Add a function that checks if all inputs and outputs are connected (true or false)
