@@ -60,7 +60,7 @@ class NeuralNet():
         for i in range(0, n):
             # Initialize random bias
             bias = (random.random()-0.5)*2
-            neuron = Neuron(b=bias, activation_fn=ActivationFn.RELU)
+            neuron = Neuron(b=bias, activation_fn=ActivationFn.SIGMOID)
             self.neuronList.append(neuron)
 
     def initializeNeuronConnections(self, n: int):
@@ -112,10 +112,12 @@ class NeuralNet():
                             sumstr = f'{neuronInput.value:.3f}*{neuronInput.weight:.3f}'
                         else:
                             sumstr += f' + {neuronInput.value:.3f}*{neuronInput.weight:.3f}'
-                if sum == 0: sumstr = '0'
+                if sum == 0:
+                    sumstr = '0'
                 sum += neuron.bias
                 if printCalculations:
-                    print(f'id={idx}; sum = {sumstr} + b = {sum:.3f} -> act(sum) = {neuron.activation_fn(sum):.3f}')
+                    print(
+                        f'id={idx}; sum = {sumstr} + b = {sum:.3f} -> act(sum) = {neuron.activation_fn(sum):.3f}')
                 neuron.value = neuron.activation_fn(sum)
 
     def computeNeuronInputValues(self):
@@ -159,6 +161,33 @@ class NeuralNet():
         if useSoftmax:
             out = softmax(np.array(out))
         return out
+
+    # Modifying methods
+
+    def mutateWeights(self, mutationRate: float):
+        assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
+        if mutationRate == 0.0:
+            return
+        for neuronInput in self.neuronInputList:
+            target = (random.random()-0.5)*2
+            # linear interpolate between new value and current value
+            neuronInput.weight = (1 - mutationRate) * \
+                neuronInput.weight + mutationRate*target
+
+    def mutateBiases(self, mutationRate: float):
+        assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
+        if mutationRate == 0.0:
+            return
+        for neuron in self.neuronList:
+            target = (random.random()-0.5)*2
+            # linear interpolate between new value and current value
+            neuron.bias = (1 - mutationRate) * \
+                neuron.bias + mutationRate*target
+
+    def mutate(self, mutationRate: float):
+        assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
+        self.mutateWeights(mutationRate=mutationRate)
+        self.mutateBiases(mutationRate=mutationRate)
 
     def getIncomingNeuronConnectionCount(self, neuronId: int) -> int:
         """Returns neuron of id `neuronId`'s incoming connection count."""
@@ -214,16 +243,15 @@ class NeuralNet():
 
     def getPurposelessNeurons(self):
         """Returns an array of Purposeless Neuron IDs.
-        
+
         Purposeless Neurons are neurons that are not output neurons, which have no outcoming connetions."""
-        
+
         out = []
         outcomingCount = self.getAllOutcomingNeuronConnectionCount()
         for i, _ in enumerate(outcomingCount):
             if outcomingCount[i][1] == 0 and not (i in self.outputNeuronIDs):
                 out.append(i)
         return out
-        
 
     # Saving the network to an image
 
@@ -286,15 +314,15 @@ class NeuralNet():
             for neuron in layer['neurons']:
                 linewidth = 4
                 style = 'filled'
-                label=None
+                label = None
                 if 'I' in neuron[0]:
-                    if not internalIDs: 
-                        label=f'I{neuron[1]}'
+                    if not internalIDs:
+                        label = f'I{neuron[1]}'
                     dot.node(neuron[0], style=style, shape='circle', color='darkgreen',
                              fillcolor='palegreen', penwidth=f'{linewidth}', label=label)
                 elif 'O' in neuron[0]:
-                    if not internalIDs: 
-                        label=f'O{neuron[1]}'
+                    if not internalIDs:
+                        label = f'O{neuron[1]}'
                     dot.node(neuron[0], style=style, shape='circle', color='darkorange',
                              fillcolor='peachpuff', penwidth=f'{linewidth}', label=label)
                 else:
