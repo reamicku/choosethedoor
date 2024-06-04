@@ -16,7 +16,7 @@ class ActivationFn(Enum):
 
 
 class NeuralNet():
-    def __init__(self, inputNeuronCount: int, outputNeuronCount: int, neuronInitialCount: int = 64, connectionInitialCount: int = 196) -> None:
+    def __init__(self, inputNeuronCount: int, outputNeuronCount: int, neuronInitialCount: int = 64, connectionInitialCount: int = 196, forbidDirectIOConnections: bool = False) -> None:
         assert inputNeuronCount > 0, "inputNeuronCount cannot be less than 1"
         assert outputNeuronCount > 0, "outputNeuronCount cannot be less than 1"
         assert neuronInitialCount > 0, "neuronInitialCount cannot be less than 1"
@@ -29,7 +29,7 @@ class NeuralNet():
         self.inputNeuronValues = []
         self.neuronsToInputs = []
         
-        self.activation_fn=ActivationFn.LEAKY_RELU
+        self.activation_fn = ActivationFn.LEAKY_RELU
 
         for nIdx in range(0, inputNeuronCount):
             self.inputNeuronIDs.append(nIdx)
@@ -39,7 +39,7 @@ class NeuralNet():
 
         self.initializeNeurons(
             inputNeuronCount + outputNeuronCount + neuronInitialCount)
-        self.initializeNeuronConnections(connectionInitialCount)
+        self.initializeNeuronConnections(connectionInitialCount, forbidDirectIOConnections=forbidDirectIOConnections)
 
         dummyInput = []
         for i in range(0, inputNeuronCount):
@@ -62,7 +62,7 @@ class NeuralNet():
             neuron = Neuron(b=bias)
             self.neuronList.append(neuron)
 
-    def initializeNeuronConnections(self, n: int):
+    def initializeNeuronConnections(self, n: int, forbidDirectIOConnections: bool = False):
         apc = generate_non_overlapping_pairs(self.totalNeuronCount)
         if len(apc) < n:
             # error: more connections than possible
@@ -75,11 +75,19 @@ class NeuralNet():
             randId = random.randrange(0, len(apc)-1)
             conArr = apc.pop(randId)
             conArrI = [conArr[0]-1, conArr[1]-1]
-            if (conArrI[0] not in self.outputNeuronIDs) and (conArrI[1] not in self.inputNeuronIDs):
-                chosenConnections.append(conArrI)
-                i += 1
-            if i >= n:
-                break
+            if forbidDirectIOConnections:
+                if (conArrI[0] not in self.outputNeuronIDs) and (conArrI[1] not in self.inputNeuronIDs) \
+                        and not (conArrI[0] in self.inputNeuronIDs and conArrI[1] in self.outputNeuronIDs):
+                    chosenConnections.append(conArrI)
+                    i += 1
+                if i >= n:
+                    break
+            else:
+                if (conArrI[0] not in self.outputNeuronIDs) and (conArrI[1] not in self.inputNeuronIDs):
+                    chosenConnections.append(conArrI)
+                    i += 1
+                if i >= n:
+                    break
 
         for c in chosenConnections:
             nId1 = c[0]
