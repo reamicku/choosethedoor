@@ -282,6 +282,8 @@ class NeuralNet():
     def getInputNeuronCount(self) -> int: return len(self.inputNeuronIDs)
 
     def getOutputNeuronCount(self) -> int: return len(self.outputNeuronIDs)
+    
+    def getAllNeuronCount(self) -> int: return len(self.neuronList)
 
     # Saving the network to an image
 
