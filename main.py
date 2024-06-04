@@ -14,12 +14,12 @@ for i in range(0, 10):
 
 
 # Create N creatures
-for i in tqdm(range(0, 10000), desc='Creating creatures'):
+for i in tqdm(range(0, 5000), desc='Creating creatures'):
     creature = Creature(5, 5)
 
     if i==0:# if i % 1000 == 0:
         while True:
-            nn = NeuralNet(5, 5, 8, (5+5+8)**1.3)
+            nn = NeuralNet(5, 5, 6, (5+5+6)**1.3)
             if nn.isAllInputOutputConnected():
                 break
 
