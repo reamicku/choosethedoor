@@ -1,53 +1,62 @@
-import random
 from neurality import NeuralNet
-from neurality.utils import generate_non_overlapping_pairs
-import math
-from utils import randArray, roundArray
+from ctdsim.elements import *
+import copy
+from tqdm import tqdm
+import time
+import os
+import shutil
 
-# input neurons
-inc = 5
-# output neurons
-onc = 5
-# internal neurons
-nnc = 16
-# neruon connections
-nncc = nnc**1.3
-# simulation steps
-iters = 50
-# change the inputs N times over the course of simulating
-iarray_nchanges = 8
+sim = Simulation()
 
-# nn = NeuralNet(inc, onc, nnc, nncc)
-while True:
-    nn = NeuralNet(inc, onc, nnc, nncc)
-    ioconns = nn.getInputOutputNeuronConnections()
-    print(ioconns)
-    if len(ioconns)==(inc+onc): break
+# Create a simulation with N rooms
+for i in range(0, 10):
+    sim.addRoom(0, 4)
 
-# mdtext = '# Neural Networks\n\n.|1|2|3|4\n-|-|-|-|-'
-# f = open('output/test/index.md', "w")
-# for i in range(1, 32+1):
-#     fpath = f'output/test/imgs/nn{i}'
-#     NeuralNet(inc, onc, nnc, nncc).saveNetworkImage(filePath=fpath)
-#     if i%4==0:
-#         mdtext += f'\n{i//4}|![](./imgs/nn{i-3}.png)|![](./imgs/nn{i-2}.png)|![](./imgs/nn{i-1}.png)|![](./imgs/nn{i-0}.png)'
-# f.write(mdtext)
 
-if nnc <= 64:
-    nn.saveNetworkImage(filePath='output/neural_network', format='png', internalIDs=False)
-print(nn)
-print(f"Possible pairs for {inc+onc+nnc} neurons: {len(generate_non_overlapping_pairs(inc+onc+nnc))}")
-print(f"Orphan neuron count: {len(nn.getOrphanNeurons())}")
-print(f"Purposeless neuron count: {len(nn.getPurposelessNeurons())}")
+# Create N creatures
+for i in tqdm(range(0, 10000), desc='Creating creatures'):
+    creature = Creature(5, 5)
 
-inArray = randArray(inc)
-for j in range(0, 50):
-    print(f'Mutation {j}')
-    if j>0: nn.mutate(mutationRate=1.0)
-    for i in range(0, iters):
-        if i%(math.ceil(iters/iarray_nchanges))==0: inArray[0] = random.choice([-1.0, 0.0, 1.0]) #inArray = randArray(inc)
-        nn.setInputNeuronValues(inArray)
-        nn.cycle(printCalculations=False)
-        output = nn.getOutputNeuronValues()
-        if i%(math.ceil(iters/iarray_nchanges))==math.ceil(iters/iarray_nchanges)-1:
-            print(f"Cycle: {i+1}\tIN: {roundArray(inArray, 3)}\tOUT: {roundArray(nn.getOutputNeuronValues(), 3)}")
+    if i==0:# if i % 1000 == 0:
+        while True:
+            nn = NeuralNet(5, 5, 8, (5+5+8)**1.3)
+            if nn.isAllInputOutputConnected():
+                break
+
+    newnn = copy.deepcopy(nn)
+    newnn.mutate(1.0)
+    creature.setNeuralNetwork(newnn)
+    sim.addCreature(creature)
+
+# Warmup
+for i in tqdm(range(0,5), desc='Simulation warmup'):
+    sim.step()
+
+# Simulate
+for i in tqdm(range(0, 33+1), desc='Simulating'):
+    chooseDoor = (i%3==0)
+    if i==0:
+        chooseDoor = False
+    sim.step(chooseDoor=chooseDoor)
+
+sim.printSimulationState()
+
+if os.path.isdir('output/simulation'):
+    shutil.rmtree('output/simulation')
+
+if not os.path.isdir('output'):
+    os.mkdir('output')
+if not os.path.isdir('output/simulation'):
+    os.mkdir('output/simulation')
+    
+f = open('output/simulation/browse.md', 'w')
+f.write("# Browse best results")
+
+bestCreatures = sim.getBestCreatureElements()
+
+if len(bestCreatures) < 50:
+    for i, el in enumerate(bestCreatures):
+        if el['creature'].nn.getAllNeuronCount() <= 64:
+            f.write(f'\n\n![](./imgs/bestnetwork{i}.png)')
+            el['creature'].nn.saveNetworkImage(f'output/simulation/imgs/bestnetwork{i}')
+f.close()
