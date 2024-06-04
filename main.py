@@ -6,6 +6,8 @@ import time
 import os
 import shutil
 
+saveNetworkImages = True
+
 sim = Simulation()
 
 # Create a simulation with N rooms
@@ -14,12 +16,12 @@ for i in range(0, 10):
 
 
 # Create N creatures
-for i in tqdm(range(0, 5000), desc='Creating creatures'):
+for i in tqdm(range(0, 500), desc='Creating creatures'):
     creature = Creature(5, 5)
 
-    if i==0:# if i % 1000 == 0:
+    if i % 50 == 0:
         while True:
-            nn = NeuralNet(5, 5, 6, (5+5+6)**1.3)
+            nn = NeuralNet(5, 5, 5, (5+5+5)**1.3, forbidDirectIOConnections=True)
             if nn.isAllInputOutputConnected():
                 break
 
@@ -33,8 +35,8 @@ for i in tqdm(range(0,5), desc='Simulation warmup'):
     sim.step()
 
 # Simulate
-for i in tqdm(range(0, 33+1), desc='Simulating'):
-    chooseDoor = (i%3==0)
+for i in tqdm(range(0, 44+1), desc='Simulating'):
+    chooseDoor = (i%4==0)
     if i==0:
         chooseDoor = False
     sim.step(chooseDoor=chooseDoor)
@@ -56,7 +58,8 @@ bestCreatures = sim.getBestCreatureElements()
 
 if len(bestCreatures) < 50:
     for i, el in enumerate(bestCreatures):
-        if el['creature'].nn.getAllNeuronCount() <= 64:
-            f.write(f'\n\n![](./imgs/bestnetwork{i}.png)')
-            el['creature'].nn.saveNetworkImage(f'output/simulation/imgs/bestnetwork{i}')
+        if saveNetworkImages:
+            if el['creature'].nn.getAllNeuronCount() <= 64:
+                f.write(f'\n\n![](./imgs/bestnetwork{i}.png)')
+                el['creature'].nn.saveNetworkImage(f'output/simulation/imgs/bestnetwork{i}')
 f.close()
