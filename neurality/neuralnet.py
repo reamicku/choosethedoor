@@ -279,6 +279,10 @@ class NeuralNet():
     def isAllInputOutputConnected(self):
         return len(self.getInputOutputNeuronConnections()) == (len(self.inputNeuronIDs)+len(self.outputNeuronIDs))
 
+    def getInputNeuronCount(self) -> int: return len(self.inputNeuronIDs)
+
+    def getOutputNeuronCount(self) -> int: return len(self.outputNeuronIDs)
+
     # Saving the network to an image
 
     def getNetworkArchitecture(self):
