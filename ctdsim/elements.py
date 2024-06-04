@@ -77,32 +77,35 @@ class Simulation():
         self.creatures.append(data)
 
     def step(self, chooseDoor=False):
-        for i, el in enumerate(self.creatures):
-            if (not el['won']) and (not el['dead']):
-                room = self.rooms[el['currentRoom']]
+        i = 0
+        for el in self.creatures:
+            if (not self.creatures[i]['won']) and (not self.creatures[i]['dead']):
+                room = self.rooms[self.creatures[i]['currentRoom']]
                 roomVals = []
                 for enumval in room:
                     roomVals.append(enumval.value)
-                el['creature'].setInputValues(roomVals)
-                el['creature'].update()
+                self.creatures[i]['creature'].setInputValues(roomVals)
+                self.creatures[i]['creature'].update()
                 
                 if chooseDoor:
-                    output = el['creature'].getOutputValues()
+                    output = self.creatures[i]['creature'].getOutputValues()
 
                     realDoorId = room.index(DoorType.REAL)
                     
                     # When neural network chooses the trap door, it kills them.
-                    for i, d in enumerate(room):
+                    for dId, d in enumerate(room):
                         if d == DoorType.TRAP:
-                            if output[i] > 0.5:
-                                el['dead'] = True
+                            if output[dId] > 0.5:
+                                self.creatures[i]['dead'] = True
+                                break
                     
-                    if not el['dead']:
+                    if not self.creatures[i]['dead']:
                         # When neural network chooses the real door, it advances to the next room.
                         if output[realDoorId] > 0.5:
-                            el['currentRoom'] += 1
-                            if el['currentRoom'] > len(self.rooms)-1:
-                                el['won'] = True
+                            self.creatures[i]['currentRoom'] += 1
+                            if self.creatures[i]['currentRoom'] > len(self.rooms)-1:
+                                self.creatures[i]['won'] = True
+            i += 1
 
     def countCreaturesInRooms(self) -> list[int]:
         out = []
