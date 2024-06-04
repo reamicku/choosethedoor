@@ -22,7 +22,7 @@ class NeuralNet():
 
         for nIdx in range(0, inputNeuronCount):
             self.inputNeuronIDs.append(nIdx)
-        
+
         for nIdx in range(self.totalNeuronCount - outputNeuronCount, self.totalNeuronCount):
             self.outputNeuronIDs.append(nIdx)
 
@@ -46,7 +46,7 @@ class NeuralNet():
         for i in range(0, n):
             # Initialize random bias
             bias = (random.random()-0.5)*2
-            neuron = Neuron(b=bias, activation_fn=ActivationFn.SIGMOID)
+            neuron = Neuron(b=bias, activation_fn=ActivationFn.LEAKY_RELU)
             self.neuronList.append(neuron)
 
     def initializeNeuronConnections(self, n: int):
@@ -86,7 +86,7 @@ class NeuralNet():
             sumstr = ''
             if idx in self.inputNeuronIDs:
                 inidx = self.inputNeuronIDs.index(idx)
-                sum = self.inputNeuronValues[inidx]
+                sum = self.inputNeuronValues[inidx] + neuron.bias
                 neuron.value = sum
                 if printCalculations:
                     print(f'id={idx}; sum = {sum:.3f}')
@@ -95,9 +95,11 @@ class NeuralNet():
                     if neuronInput.parentNeuron == neuron:
                         sum += neuronInput.value * neuronInput.weight
                         if sumstr == '':
-                            sumstr = f'{neuronInput.value:.3f}*{neuronInput.weight:.3f}'
+                            sumstr = f'{
+                                neuronInput.value:.3f}*{neuronInput.weight:.3f}'
                         else:
-                            sumstr += f' + {neuronInput.value:.3f}*{neuronInput.weight:.3f}'
+                            sumstr += f' + {neuronInput.value:.3f}*{
+                                neuronInput.weight:.3f}'
                 if sum == 0:
                     sumstr = '0'
                 sum += neuron.bias
@@ -175,6 +177,8 @@ class NeuralNet():
         self.mutateWeights(mutationRate=mutationRate)
         self.mutateBiases(mutationRate=mutationRate)
 
+    # Checking functions
+
     def getIncomingNeuronConnectionCount(self, neuronId: int) -> int:
         """Returns neuron of id `neuronId`'s incoming connection count."""
 
@@ -238,6 +242,42 @@ class NeuralNet():
             if outcomingCount[i][1] == 0 and not (i in self.outputNeuronIDs):
                 out.append(i)
         return out
+
+    def getInputNeuronConnections(self):
+        """Returns an array of Input Neurons with connections."""
+        out = []
+        for nId in self.inputNeuronIDs:
+            neuron = self.neuronList[nId]
+            for ni in self.neuronInputList:
+                if ni.incomingNeuron == neuron:
+                    out.append(nId)
+                    break
+        return out
+
+    def getOutputNeuronConnections(self):
+        """Returns an array of Output Neurons with connections."""
+        out = []
+        for nId in self.outputNeuronIDs:
+            neuron = self.neuronList[nId]
+            for ni in self.neuronInputList:
+                if ni.parentNeuron == neuron:
+                    out.append(nId)
+                    break
+        return out
+
+    def getInputOutputNeuronConnections(self):
+        """Returns an array of Input/Output Neurons with connections"""
+        out = []
+        inc = self.getInputNeuronConnections()
+        onc = self.getOutputNeuronConnections()
+        for el in inc:
+            out.append(el)
+        for el in onc:
+            out.append(el)
+        return out
+
+    def isAllInputOutputConnected(self):
+        return len(self.getInputOutputNeuronConnections()) == (len(self.inputNeuronIDs)+len(self.outputNeuronIDs))
 
     # Saving the network to an image
 

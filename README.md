@@ -84,6 +84,3 @@ Green | `1.0`
 
 - Optimize performance of creating networks
 - Optimize performance of computing
-- Add a function to return a list of disconnected inputs (array of neuron ids)
-- Add a function to return a list of disconnected outputs (array of neuron ids)
-- Add a function that checks if all inputs and outputs are connected (true or false)
