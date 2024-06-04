@@ -16,10 +16,10 @@ for i in range(0, 10):
 
 
 # Create N creatures
-for i in tqdm(range(0, 500), desc='Creating creatures'):
+for i in tqdm(range(0, 10000), desc='Creating creatures'):
     creature = Creature(5, 5)
 
-    if i % 50 == 0:
+    if i % 1000 == 0:
         while True:
             nn = NeuralNet(5, 5, 5, (5+5+5)**1.3, forbidDirectIOConnections=True)
             if nn.isAllInputOutputConnected():
@@ -31,12 +31,12 @@ for i in tqdm(range(0, 500), desc='Creating creatures'):
     sim.addCreature(creature)
 
 # Warmup
-for i in tqdm(range(0,5), desc='Simulation warmup'):
+for i in tqdm(range(0,7), desc='Simulation warmup'):
     sim.step()
 
 # Simulate
-for i in tqdm(range(0, 44+1), desc='Simulating'):
-    chooseDoor = (i%4==0)
+for i in tqdm(range(0, 77+1), desc='Simulating'):
+    chooseDoor = (i%7==0)
     if i==0:
         chooseDoor = False
     sim.step(chooseDoor=chooseDoor)
