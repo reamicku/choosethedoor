@@ -25,7 +25,7 @@ class Creature():
         if isinstance(self.nn, NeuralNet):
             self.nn.setInputNeuronValues(self.inputValues)
             self.nn.cycle()
-            self.outputValues = self.nn.getOutputNeuronValues()
+            self.outputValues = self.nn.getOutputNeuronValues(useSoftmax=True)
 
     def getOutputValues(self) -> list[float]:
         return self.outputValues
@@ -79,7 +79,6 @@ class Simulation():
     def step(self, chooseDoor=False):
         for i, el in enumerate(self.creatures):
             if (not el['won']) and (not el['dead']):
-                if el['currentRoom'] > len(self.rooms) : print(el['currentRoom'])
                 room = self.rooms[el['currentRoom']]
                 roomVals = []
                 for enumval in room:
@@ -101,14 +100,13 @@ class Simulation():
                     if not el['dead']:
                         # When neural network chooses the real door, it advances to the next room.
                         if output[realDoorId] > 0.5:
-                            if el['currentRoom'] + 1 > len(self.rooms):
+                            el['currentRoom'] += 1
+                            if el['currentRoom'] > len(self.rooms)-1:
                                 el['won'] = True
-                            else:
-                                el['currentRoom'] += 1
 
     def countCreaturesInRooms(self) -> list[int]:
         out = []
-        for i in range(0, len(self.rooms)):
+        for i in range(0, len(self.rooms)+1):
             out.append(0)
         for i, el in enumerate(self.creatures):
             roomId = el['currentRoom']
@@ -117,8 +115,11 @@ class Simulation():
 
     def printSimulationState(self):
         creaturesInRooms = self.countCreaturesInRooms()
-        for i in range(len(self.rooms), 0, -1):
-            print(f'Room {i}\tCreatures: {creaturesInRooms[i-1]}')
+        for i in range(len(self.rooms)+1, 0, -1):
+            if i == len(self.rooms)+1:
+                print(f'Exit  \tCreatures: {creaturesInRooms[i-1]}')
+            else:
+                print(f'Room {i}\tCreatures: {creaturesInRooms[i-1]}')
 
     def getCreaturesIDsInRoom(self, roomId: int) -> list[int]:
         out = []
