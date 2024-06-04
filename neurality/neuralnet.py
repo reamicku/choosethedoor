@@ -1,10 +1,18 @@
-from .neuron import Neuron, ActivationFn
+from .neuron import Neuron
 from .neuroninput import NeuronConnection
 from .math import softmax
 from .utils import generate_pairs, generate_non_overlapping_pairs
 import random
 import numpy as np
 from graphviz import Digraph
+from .math import *
+from enum import Enum
+
+
+class ActivationFn(Enum):
+    SIGMOID = sigmoid
+    RELU = relu
+    LEAKY_RELU = leaky_relu
 
 
 class NeuralNet():
@@ -19,6 +27,9 @@ class NeuralNet():
         self.totalNeuronCount = inputNeuronCount + \
             outputNeuronCount + neuronInitialCount
         self.inputNeuronValues = []
+        self.neuronsToInputs = []
+        
+        self.activation_fn=ActivationFn.LEAKY_RELU
 
         for nIdx in range(0, inputNeuronCount):
             self.inputNeuronIDs.append(nIdx)
@@ -34,6 +45,8 @@ class NeuralNet():
         for i in range(0, inputNeuronCount):
             dummyInput.append(0.0)
         self.setInputNeuronValues(dummyInput)
+        
+        self.prepareNeuronInputArray()
 
     def __str__(self) -> str:
         return f"NeuralNet(size={len(self.neuronList)}, connections={len(self.neuronInputList)}, inputCount={len(self.inputNeuronIDs)}, outputCount={len(self.outputNeuronIDs)})"
@@ -46,7 +59,7 @@ class NeuralNet():
         for i in range(0, n):
             # Initialize random bias
             bias = (random.random()-0.5)*2
-            neuron = Neuron(b=bias, activation_fn=ActivationFn.LEAKY_RELU)
+            neuron = Neuron(b=bias)
             self.neuronList.append(neuron)
 
     def initializeNeuronConnections(self, n: int):
@@ -77,38 +90,30 @@ class NeuralNet():
             neuronInput = NeuronConnection(
                 incomingNeuron, parentNeuron, w=weight)
             self.neuronInputList.append(neuronInput)
+    
+    def prepareNeuronInputArray(self):
+        self.neuronsToInputs = []
+        for i in range(0, self.getAllNeuronCount()):
+            self.neuronsToInputs.append([])
+        for i, nc in enumerate(self.neuronInputList):
+            nId = self.neuronList.index(nc.parentNeuron)
+            self.neuronsToInputs[nId].append(i)
 
     # Activation methods
 
     def computeNeuronValues(self, printCalculations: bool = False):
-        for idx, neuron in enumerate(self.neuronList):
+        i = 0
+        for el in self.neuronsToInputs:
             sum = 0
-            sumstr = ''
-            if idx in self.inputNeuronIDs:
-                inidx = self.inputNeuronIDs.index(idx)
-                sum = self.inputNeuronValues[inidx] + neuron.bias
-                neuron.value = sum
-                if printCalculations:
-                    print(f'id={idx}; sum = {sum:.3f}')
+            if i in self.inputNeuronIDs:
+                inidx = self.inputNeuronIDs.index(i)
+                self.neuronList[i].value = self.inputNeuronValues[inidx] + self.neuronList[i].bias
             else:
-                for neuronInput in self.neuronInputList:
-                    if neuronInput.parentNeuron == neuron:
-                        sum += neuronInput.value * neuronInput.weight
-                        if printCalculations:
-                            if sumstr == '':
-                                sumstr = f'{
-                                    neuronInput.value:.3f}*{neuronInput.weight:.3f}'
-                            else:
-                                sumstr += f' + {neuronInput.value:.3f}*{
-                                    neuronInput.weight:.3f}'
-                if printCalculations:
-                    if sum == 0:
-                        sumstr = '0'
-                sum += neuron.bias
-                if printCalculations:
-                    print(
-                        f'id={idx}; sum = {sumstr} + b = {sum:.3f} -> act(sum) = {neuron.activation_fn(sum):.3f}')
-                neuron.value = neuron.activation_fn(sum)
+                for nInId in el:
+                    sum += self.neuronInputList[nInId].value * self.neuronInputList[nInId].weight
+                sum += self.neuronList[i].bias
+                self.neuronList[i].value = self.activation_fn(sum)
+            i += 1
 
     def computeNeuronInputValues(self):
         for neuronInput in self.neuronInputList:
