@@ -94,14 +94,16 @@ class NeuralNet():
                 for neuronInput in self.neuronInputList:
                     if neuronInput.parentNeuron == neuron:
                         sum += neuronInput.value * neuronInput.weight
-                        if sumstr == '':
-                            sumstr = f'{
-                                neuronInput.value:.3f}*{neuronInput.weight:.3f}'
-                        else:
-                            sumstr += f' + {neuronInput.value:.3f}*{
-                                neuronInput.weight:.3f}'
-                if sum == 0:
-                    sumstr = '0'
+                        if printCalculations:
+                            if sumstr == '':
+                                sumstr = f'{
+                                    neuronInput.value:.3f}*{neuronInput.weight:.3f}'
+                            else:
+                                sumstr += f' + {neuronInput.value:.3f}*{
+                                    neuronInput.weight:.3f}'
+                if printCalculations:
+                    if sum == 0:
+                        sumstr = '0'
                 sum += neuron.bias
                 if printCalculations:
                     print(
