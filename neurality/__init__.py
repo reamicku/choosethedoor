@@ -1,3 +1,3 @@
 from .neuron import Neuron
 from .neuroninput import NeuronConnection
-from .neuralnet import NeuralNet
+from .neuralnet import NeuralNet, Distribution, ActivationFn

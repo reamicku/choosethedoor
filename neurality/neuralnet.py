@@ -10,13 +10,22 @@ from enum import Enum
 
 
 class ActivationFn(Enum):
+    IDENTITY = identity
+    BINARY = binary
+    TANH = tanh
     SIGMOID = sigmoid
     RELU = relu
     LEAKY_RELU = leaky_relu
 
 
+class Distribution(Enum):
+    LINEAR = 0
+    XAVIER = 1
+    HE = 2
+
+
 class NeuralNet():
-    def __init__(self, inputNeuronCount: int, outputNeuronCount: int, neuronInitialCount: int = 64, connectionInitialCount: int = 196, forbidDirectIOConnections: bool = False) -> None:
+    def __init__(self, inputNeuronCount: int, outputNeuronCount: int, neuronInitialCount: int = 64, connectionInitialCount: int = 196, forbidDirectIOConnections: bool = False, activation_fn: ActivationFn = ActivationFn.LEAKY_RELU) -> None:
         assert inputNeuronCount > 0, "inputNeuronCount cannot be less than 1"
         assert outputNeuronCount > 0, "outputNeuronCount cannot be less than 1"
         assert neuronInitialCount > 0, "neuronInitialCount cannot be less than 1"
@@ -28,8 +37,8 @@ class NeuralNet():
             outputNeuronCount + neuronInitialCount
         self.inputNeuronValues = []
         self.neuronsToInputs = []
-        
-        self.activation_fn = ActivationFn.LEAKY_RELU
+
+        self.activation_fn = activation_fn
 
         for nIdx in range(0, inputNeuronCount):
             self.inputNeuronIDs.append(nIdx)
@@ -39,14 +48,14 @@ class NeuralNet():
 
         self.initializeNeurons(
             inputNeuronCount + outputNeuronCount + neuronInitialCount)
-        self.initializeNeuronConnections(connectionInitialCount, forbidDirectIOConnections=forbidDirectIOConnections)
+        self.initializeNeuronConnections(
+            connectionInitialCount, forbidDirectIOConnections=forbidDirectIOConnections)
 
-        dummyInput = []
-        for i in range(0, inputNeuronCount):
-            dummyInput.append(0.0)
-        self.setInputNeuronValues(dummyInput)
-        
+        self.setInputNeuronValues(np.zeros(inputNeuronCount))
+
         self.prepareNeuronInputArray()
+        self.mutate(1.0, distrib=Distribution.LINEAR, lower=-1.0, upper=1.0)
+        self.weightsBiasRange = [-1.0, 1.0]
 
     def __str__(self) -> str:
         return f"NeuralNet(size={len(self.neuronList)}, connections={len(self.neuronInputList)}, inputCount={len(self.inputNeuronIDs)}, outputCount={len(self.outputNeuronIDs)})"
@@ -57,9 +66,7 @@ class NeuralNet():
         # Create neurons
         self.neuronList = []
         for i in range(0, n):
-            # Initialize random bias
-            bias = (random.random()-0.5)*2
-            neuron = Neuron(b=bias)
+            neuron = Neuron()
             self.neuronList.append(neuron)
 
     def initializeNeuronConnections(self, n: int, forbidDirectIOConnections: bool = False):
@@ -94,11 +101,9 @@ class NeuralNet():
             nId2 = c[1]
             incomingNeuron = self.neuronList[nId1]
             parentNeuron = self.neuronList[nId2]
-            weight = (random.random()-0.5)*2
-            neuronInput = NeuronConnection(
-                incomingNeuron, parentNeuron, w=weight)
+            neuronInput = NeuronConnection(incomingNeuron, parentNeuron)
             self.neuronInputList.append(neuronInput)
-    
+
     def prepareNeuronInputArray(self):
         self.neuronsToInputs = []
         for i in range(0, self.getAllNeuronCount()):
@@ -115,10 +120,12 @@ class NeuralNet():
             sum = 0
             if i in self.inputNeuronIDs:
                 inidx = self.inputNeuronIDs.index(i)
-                self.neuronList[i].value = self.inputNeuronValues[inidx] + self.neuronList[i].bias
+                self.neuronList[i].value = self.inputNeuronValues[inidx] + \
+                    self.neuronList[i].bias
             else:
                 for nInId in el:
-                    sum += self.neuronInputList[nInId].value * self.neuronInputList[nInId].weight
+                    sum += self.neuronInputList[nInId].value * \
+                        self.neuronInputList[nInId].weight
                 sum += self.neuronList[i].bias
                 self.neuronList[i].value = self.activation_fn(sum)
             i += 1
@@ -167,30 +174,53 @@ class NeuralNet():
 
     # Modifying methods
 
-    def mutateWeights(self, mutationRate: float):
+    def mutateWeights(self, mutationRate: float, distrib: Distribution, lower: float, upper: float):
         assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
         if mutationRate == 0.0:
             return
-        for neuronInput in self.neuronInputList:
-            target = (random.random()-0.5)*2
-            # linear interpolate between new value and current value
-            neuronInput.weight = (1 - mutationRate) * \
-                neuronInput.weight + mutationRate*target
 
-    def mutateBiases(self, mutationRate: float):
+        if distrib is Distribution.LINEAR:
+            randValues = linear_distrib(
+                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+        elif distrib is Distribution.XAVIER:
+            randValues = xavier_distrib(
+                self.getInputNeuronCount(), self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+        elif distrib is Distribution.HE:
+            randValues = he_distrib(
+                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+
+        for i, neuronInput in enumerate(self.neuronInputList):
+            # linear interpolate between new value and current value
+            neuronInput.weight = (1.0 - mutationRate) * \
+                neuronInput.weight + mutationRate*randValues[i]
+
+    def mutateBiases(self, mutationRate: float, distrib: Distribution, lower: float, upper: float):
         assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
         if mutationRate == 0.0:
             return
-        for neuron in self.neuronList:
-            target = (random.random()-0.5)*2
-            # linear interpolate between new value and current value
-            neuron.bias = (1 - mutationRate) * \
-                neuron.bias + mutationRate*target
 
-    def mutate(self, mutationRate: float):
+        if distrib is Distribution.LINEAR:
+            randValues = linear_distrib(
+                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+        elif distrib is Distribution.XAVIER:
+            randValues = xavier_distrib(
+                self.getInputNeuronCount(), self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+        elif distrib is Distribution.HE:
+            randValues = he_distrib(
+                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+
+        for i, neuron in enumerate(self.neuronList):
+            # linear interpolate between new value and current value
+            neuron.bias = (1.0 - mutationRate) * \
+                neuron.bias + mutationRate*randValues[i]
+
+    def mutate(self, mutationRate: float, distrib: Distribution = Distribution.LINEAR, lower: float = -1.0, upper: float = 1.0):
         assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
-        self.mutateWeights(mutationRate=mutationRate)
-        self.mutateBiases(mutationRate=mutationRate)
+        self.mutateWeights(mutationRate=mutationRate,
+                           distrib=distrib, lower=lower, upper=upper)
+        self.mutateBiases(mutationRate=mutationRate,
+                          distrib=distrib, lower=lower, upper=upper)
+        self.weightsBiasRange = [lower, upper]
 
     # Checking functions
 
@@ -297,8 +327,11 @@ class NeuralNet():
     def getInputNeuronCount(self) -> int: return len(self.inputNeuronIDs)
 
     def getOutputNeuronCount(self) -> int: return len(self.outputNeuronIDs)
-    
+
     def getAllNeuronCount(self) -> int: return len(self.neuronList)
+
+    def getAllNeuronConnecionCount(
+        self) -> int: return len(self.neuronInputList)
 
     # Saving the network to an image
 
@@ -380,7 +413,8 @@ class NeuralNet():
 
         # Customize edge styles
         for connection in nnNetwork['connections']:
-            linewidth = 0.5 + abs(connection[2])*3.5
+            weight = abs(connection[2]) / (abs(self.weightsBiasRange[1]-self.weightsBiasRange[0])/2)
+            linewidth = 0.5 + abs(weight)*3.5
             if connection[2] >= 0:
                 dot.edge(connection[0], connection[1],
                          color='blue', penwidth=f'{linewidth}')
