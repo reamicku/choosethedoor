@@ -41,6 +41,10 @@ class Simulation():
     def __init__(self) -> None:
         self.rooms = []
         self.creatures = []
+    
+    def getRoomCount(self): return len(self.rooms)
+    
+    def getCreatureCount(self): return len(self.creatures)
 
     def addRoom(self, trapDoorCount: int, fakeDoorCount: int, room: list[float] = []) -> None:
         """Creates a room. A room always has only 1 real door.
@@ -69,14 +73,13 @@ class Simulation():
 
     def addCreature(self, creature: Creature, startingRoom=0):
         data = {
+            'id': self.getCreatureCount(),
             'creature': creature,
             'currentRoom': startingRoom,
             'won': False,
             'dead': False
         }
         self.creatures.append(data)
-    
-    def getRoomCount(self): return len(self.rooms)
 
     def step(self, chooseDoor=False):
         i = 0
@@ -167,9 +170,9 @@ class Simulation():
         outN = 0
         for i, room in reversed(list(enumerate(creaturesInRooms))):
             for cId in room:
-                out.append(self.creatures[cId]['creature'])
+                out.append(self.creatures[cId])
                 outN += 1
-                if outN >= n: break
+                if outN >= n: return out
         return out
 
     def getCreaturesInRoom(self, min_room: int, max_room: int):
@@ -180,4 +183,15 @@ class Simulation():
     def getRoomsLayout(self):
         out = []
         for i in range(0, self.getRoomCount()): out.append(self.getRoomLayout(i))
+        return out
+    
+    def getRoomLayoutValues(self, i: int):
+        out = []
+        for door in self.rooms[i]:
+            out.append(door.value)
+        return out
+
+    def getRoomsLayoutValues(self):
+        out = []
+        for i in range(0, self.getRoomCount()): out.append(self.getRoomLayoutValues(i))
         return out
