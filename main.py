@@ -70,7 +70,7 @@ for j in range(0, n_sims):
                         break
             newnn = copy.deepcopy(nn)
         else:
-            newnn = copy.deepcopy(bestCreatures[i % n_reproduced].nn)
+            newnn = copy.deepcopy(bestCreatures[i % n_reproduced]['creature'].nn)
             
         newnn.mutate(mut_rate, distrib=random_distrib, lower=random_distrib_range[0], upper=random_distrib_range[1])
         creature.setNeuralNetwork(newnn)
@@ -91,8 +91,9 @@ for j in range(0, n_sims):
     bestCreatures = sim.getBestNCreatures(n_reproduced)
     
     genInfoRow = {
-        'room_layout': sim.getRoomsLayout(),
+        'room_layout': sim.getRoomsLayoutValues(),
         'creatures_in_rooms': sim.countCreaturesInRooms(),
+        'top_creatures': sim.getBestNCreatures(3)
     }
     generationInfo.append(genInfoRow)
     
@@ -107,6 +108,11 @@ if not os.path.isdir('output'):
     
 if not os.path.isdir('output/simulations'):
     os.mkdir('output/simulations')
+    
+os.mkdir(f'output/simulations/{output_dir}')
+os.mkdir(f'output/simulations/{output_dir}/images')
+
+print('\nSaving results')
 
 # Prepare markdown template
 markdownTemplate = f"""# Simulation
@@ -152,8 +158,7 @@ Forbid direct Input-Output connections | <|forbid_direct_io_connections|>
 ## Results
 
 <|results|>
-<|netimages|>
-"""
+<|netimages|>"""
 
 markdownReplace = {
     '<|start_date|>': str(timeNowStr),
@@ -184,17 +189,60 @@ markdownText = markdownTemplate
 for key, value in markdownReplace.items():
     markdownText = markdownText.replace(key, value)
 
-# bestCreatures = sim.getBestCreatureElements()
+markdownTextResults = ''
+markdownTextNetImages = '## Neural Network Images'
+for i, gen in enumerate(generationInfo):
+    textResults = f"""### Generation {i+1}
 
-# if len(bestCreatures) < 50:
-#     for i, el in enumerate(bestCreatures):
-#         if save_network_images:
-#             if el['creature'].nn.getAllNeuronCount() <= 30:
-#                 f.write(f'\n\n![](./images/bestnetwork{i}.png)')
-#                 el['creature'].nn.saveNetworkImage(f'output/simulation/imgs/bestnetwork{i}')
+**Best NNs**: <|best_nns|>
 
-os.mkdir(f'output/simulations/{output_dir}')
-os.mkdir(f'output/simulations/{output_dir}/images')
+Room | Creatures | Layout
+-|-|-<|room_layout|>\n"""
+
+    textNetImages = f"""<|nnets|>"""
+    
+    textRoomLayout = ''
+    for rId in range(n_rooms, 0-1, -1):
+        ridStr = rId+1
+        if rId == n_rooms:
+            ridStr = 'EXIT'
+        if rId == n_rooms:
+            layoutStr = 'None'
+        else:
+            layoutStr = gen['room_layout'][rId]
+        textRoomLayout += f'\n{ridStr} | `{gen['creatures_in_rooms'][rId]}` | `{layoutStr}`'
+    
+    textRoomBestNNS = ''
+    textNetImagesRow = ''
+    for cId, c in enumerate(gen['top_creatures']):
+        
+        if cId == len(gen['top_creatures'])-1: sep = ''
+        else: sep = ', '
+        nnName = f'{i+1}_{c['id']}'
+        if save_network_images:
+            textRoomBestNNS += f'[{nnName}](#{nnName}){sep}'
+        else:
+            textRoomBestNNS += f'{nnName}{sep}'
+        
+        if save_network_images:
+                if c['creature'].nn.getAllNeuronCount() <= 30:
+                    print(f'Saving image of NN-{nnName}')
+                    textNetImagesRow += f'\n\n### {nnName}\n\n[Back](#generation-{i+1})\n\n![](./images/{nnName}.png)'
+                    c['creature'].nn.saveNetworkImage(f'output/simulations/{output_dir}/images/{nnName}')
+    
+    textResults = textResults.replace('<|room_layout|>', textRoomLayout)
+    textResults = textResults.replace('<|best_nns|>', textRoomBestNNS)
+    markdownTextResults += textResults
+    textNetImages = textNetImages.replace('<|nnets|>', textNetImagesRow)
+    markdownTextNetImages += textNetImages
+
+if not save_network_images: markdownTextNetImages = ''
+
+markdownText = markdownText.replace('<|results|>', markdownTextResults)
+markdownText = markdownText.replace('<|netimages|>', markdownTextNetImages)
+
 f = open(f'output/simulations/{output_dir}/index.md', 'w')
 f.write(markdownText)
 f.close()
+
+print(f'Output at ./output/simulations/{output_dir}/index.md')
