@@ -75,6 +75,8 @@ class Simulation():
             'dead': False
         }
         self.creatures.append(data)
+    
+    def getRoomCount(self): return len(self.rooms)
 
     def step(self, chooseDoor=False):
         i = 0
@@ -103,13 +105,13 @@ class Simulation():
                         # When neural network chooses the real door, it advances to the next room.
                         if output[realDoorId] > 0.5:
                             self.creatures[i]['currentRoom'] += 1
-                            if self.creatures[i]['currentRoom'] > len(self.rooms)-1:
+                            if self.creatures[i]['currentRoom'] > self.getRoomCount()-1:
                                 self.creatures[i]['won'] = True
             i += 1
 
     def countCreaturesInRooms(self) -> list[int]:
         out = []
-        for i in range(0, len(self.rooms)+1):
+        for i in range(0, self.getRoomCount()+1):
             out.append(0)
         for i, el in enumerate(self.creatures):
             roomId = el['currentRoom']
@@ -118,17 +120,23 @@ class Simulation():
 
     def printSimulationState(self):
         creaturesInRooms = self.countCreaturesInRooms()
-        for i in range(len(self.rooms)+1, 0, -1):
-            if i == len(self.rooms)+1:
-                print(f'Exit  \tCreatures: {creaturesInRooms[i-1]}')
+        for i in range(self.getRoomCount()+1, 0, -1):
+            n = creaturesInRooms[i-1]
+            if i == self.getRoomCount()+1:
+                print(f'Exit  \tCreatures: {n}')
             else:
-                print(f'Room {i}\tCreatures: {creaturesInRooms[i-1]}')
+                if n>0: print(f'Room {i}\tCreatures: {n}')
 
     def getCreaturesIDsInRoom(self, roomId: int) -> list[int]:
         out = []
         for i, creature in enumerate(self.creatures):
             if creature['currentRoom'] == roomId:
                 out.append(i)
+        return out
+
+    def getCreaturesIDsInRooms(self) -> list[int]:
+        out = []
+        for i in range(self.getRoomCount()): out.append(self.getCreaturesIDsInRoom(i))
         return out
 
     def getFurthestCreatureIDs(self):
@@ -150,4 +158,26 @@ class Simulation():
         out = []
         for i in bestIDs:
             out.append(self.creatures[i])
+        return out
+    
+    def getBestNCreatures(self, n: int = 1):
+        creaturesInRooms = self.getCreaturesIDsInRooms()
+        
+        out = []
+        outN = 0
+        for i, room in reversed(list(enumerate(creaturesInRooms))):
+            for cId in room:
+                out.append(self.creatures[cId]['creature'])
+                outN += 1
+                if outN >= n: break
+        return out
+
+    def getCreaturesInRoom(self, min_room: int, max_room: int):
+        pass
+    
+    def getRoomLayout(self, i: int): return self.rooms[i]
+    
+    def getRoomsLayout(self):
+        out = []
+        for i in range(0, self.getRoomCount()): out.append(self.getRoomLayout(i))
         return out
