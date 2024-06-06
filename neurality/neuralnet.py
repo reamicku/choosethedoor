@@ -429,4 +429,4 @@ class NeuralNet():
                          color='red', penwidth=f'{linewidth}')
 
         # Render the graph to a PNG file
-        dot.render(filePath, view=False, format=format)
+        dot.render(filePath, view=False, format=format, cleanup=True)
