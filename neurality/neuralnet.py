@@ -10,6 +10,9 @@ from enum import Enum
 
 
 class ActivationFn(Enum):
+    def __str__(self) -> str:
+        return self.value.__name__
+    
     IDENTITY = identity
     BINARY = binary
     TANH = tanh
@@ -19,6 +22,9 @@ class ActivationFn(Enum):
 
 
 class Distribution(Enum):
+    def __str__(self) -> str:
+        return self.name
+    
     LINEAR = 0
     XAVIER = 1
     HE = 2
