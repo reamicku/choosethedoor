@@ -185,41 +185,47 @@ class NeuralNet():
         assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
         if mutationRate == 0.0:
             return
+        
+        nCount = self.getAllNeuronConnecionCount()
 
         if distrib is Distribution.LINEAR:
             randValues = linear_distrib(
-                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+                nCount, lower=lower, upper=upper)
         elif distrib is Distribution.XAVIER:
             randValues = xavier_distrib(
-                self.getInputNeuronCount(), self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+                self.getInputNeuronCount(), nCount, lower=lower, upper=upper)
         elif distrib is Distribution.HE:
             randValues = he_distrib(
-                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+                nCount, lower=lower, upper=upper)
+        
+        probs = np.random.rand(nCount)
 
         for i, neuronInput in enumerate(self.neuronInputList):
-            # linear interpolate between new value and current value
-            neuronInput.weight = (1.0 - mutationRate) * \
-                neuronInput.weight + mutationRate*randValues[i]
+            if probs[i] > (1 - mutationRate):
+                neuronInput.weight = randValues[i]
 
     def mutateBiases(self, mutationRate: float, distrib: Distribution, lower: float, upper: float):
         assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
         if mutationRate == 0.0:
             return
+        
+        nCount = self.getAllNeuronConnecionCount()
 
         if distrib is Distribution.LINEAR:
             randValues = linear_distrib(
-                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+                nCount, lower=lower, upper=upper)
         elif distrib is Distribution.XAVIER:
             randValues = xavier_distrib(
-                self.getInputNeuronCount(), self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+                self.getInputNeuronCount(), nCount, lower=lower, upper=upper)
         elif distrib is Distribution.HE:
             randValues = he_distrib(
-                self.getAllNeuronConnecionCount(), lower=lower, upper=upper)
+                nCount, lower=lower, upper=upper)
+        
+        probs = np.random.rand(nCount)
 
         for i, neuron in enumerate(self.neuronList):
-            # linear interpolate between new value and current value
-            neuron.bias = (1.0 - mutationRate) * \
-                neuron.bias + mutationRate*randValues[i]
+            if probs[i] > (1 - mutationRate):
+                neuron.bias = randValues[i]
 
     def mutate(self, mutationRate: float, distrib: Distribution = Distribution.LINEAR, lower: float = -1.0, upper: float = 1.0):
         assert mutationRate >= 0 and mutationRate <= 1, "mutationRate must be a value between 0.0 and 1.0."
