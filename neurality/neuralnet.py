@@ -7,7 +7,8 @@ import numpy as np
 from graphviz import Digraph
 from .math import *
 from enum import Enum
-
+import copy
+import math
 
 class ActivationFn(Enum):
     def __str__(self) -> str:
@@ -227,6 +228,42 @@ class NeuralNet():
         self.mutateBiases(mutationRate=mutationRate,
                           distrib=distrib, lower=lower, upper=upper)
         self.weightsBiasRange = [lower, upper]
+    
+    def onePointCrossover(parent1: 'NeuralNet', parent2: 'NeuralNet', point: float) -> list['NeuralNet']:
+        """Performs one-point crossover between self and partner and returns two child networks.
+        
+        `partner` - Other neural network
+        
+        `point` - A point where to perform the crossover. Ranges between `<0, 1>`."""
+        assert parent1.getAllNeuronCount() == parent2.getAllNeuronCount(), "self and partner must have the same structure"
+        assert parent1.getAllNeuronConnecionCount() == parent2.getAllNeuronConnecionCount(), "self and partner must have the same structure"
+        
+        neuron_count = parent1.getAllNeuronCount()
+        nc_count = parent1.getAllNeuronConnecionCount()
+        
+        neuron_point = math.floor(point * neuron_count)
+        nc_point = math.floor(point * nc_count)
+        
+        child1 = copy.deepcopy(parent2)
+        child2 = copy.deepcopy(parent1)
+        
+        for i in range(neuron_point, neuron_count):
+            child1.neuronList[i].bias = parent1.neuronList[i].bias
+            child2.neuronList[i].bias = parent2.neuronList[i].bias
+        
+        for i in range(nc_point, nc_count):
+            child1.neuronInputList[i].weight = parent1.neuronInputList[i].weight
+            child2.neuronInputList[i].weight = parent2.neuronInputList[i].weight
+        
+        return [child1, child2]
+    
+    def kPointCrossover(parent1: 'NeuralNet', parent2: 'NeuralNet', ordered_points: list[float]):
+        
+        net1 = parent1
+        net2 = parent2
+        for p in ordered_points:
+            net1, net2 = NeuralNet.onePointCrossover(net1, net2, p)
+        return net1, net2
 
     # Checking functions
 

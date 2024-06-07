@@ -11,28 +11,30 @@ from datetime import datetime
 
 ##### Define values #####
 ### Simulation variables
-n_rooms = 10
-n_trapdoors = 0
-n_fakedoors = 4
-n_creatures = 100
+n_rooms = 25
+n_trapdoors = 4
+n_fakedoors = 0
+n_creatures = 1000
 
 ### Simulation variables cont.
-n_sims = 10 # Amount of simulations
+n_generations = 10 # Amount of simulations
 n_neuralnet_processing_steps = 6 # Neural net gets updated N times before making a decision
-n_newnet_creatures_step = 1 # Create new nn every N creatures
-n_reproduced = 1 # Select N best networks and use them for reproduction
-mutation_rate = 0.001 # Mutation rate every simulation
+n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
+n_reproduced = 50 # Select N best networks and use them for reproduction (dividable by 2!!!)
+mutation_rate = 0.01 # Mutation rate every simulation
 
 ### Neural Network
 n_internal_neurons = 8
-n_connections = 42
-forbid_direct_io_connections = True
-activation_fn = ActivationFn.RELU
+n_connections = 40
+forbid_direct_io_connections = False
+activation_fn = ActivationFn.LEAKY_RELU
 random_distrib = Distribution.HE
 random_distrib_range = [-4.0, 4.0]
 
 ### Misc
+save_results = True
 save_network_images = True
+hide_empty_rooms = True
 #########################
 
 
@@ -47,8 +49,8 @@ n_output_neurons = n_alldoors
 generationInfo = []
 
 # Perform N simulations
-for j in range(0, n_sims):
-    if j != 0: print(f'========== Simulation {j+1}')
+for j in range(0, n_generations):
+    if j != 0: print(f'========== Generation {j+1}')
     sim = Simulation()
 
     # Create a simulation with N rooms
@@ -69,12 +71,26 @@ for j in range(0, n_sims):
                     if nn.isAllInputOutputConnected():
                         break
             newnn = copy.deepcopy(nn)
+            newnn.mutate(mut_rate, distrib=random_distrib, lower=random_distrib_range[0], upper=random_distrib_range[1])
+            creature.setNeuralNetwork(newnn)
+            sim.addCreature(creature)
         else:
-            newnn = copy.deepcopy(bestCreatures[i % n_reproduced]['creature'].nn)
-            
-        newnn.mutate(mut_rate, distrib=random_distrib, lower=random_distrib_range[0], upper=random_distrib_range[1])
-        creature.setNeuralNetwork(newnn)
-        sim.addCreature(creature)
+            if (i%2 == 1):
+                cId = i % n_reproduced
+                parent1 = bestCreatures[cId - 1]['creature'].nn
+                parent2 = bestCreatures[cId - 0]['creature'].nn
+                crossover_point = random.random()
+                n_crossover_points = 2
+                crossover_points = []
+                for p in range(0, n_crossover_points):
+                    crossover_points.append(random.random())
+                crossover_points.sort()
+                newnets = NeuralNet.kPointCrossover(parent1, parent2, crossover_points)
+                random_distrib = Distribution.HE
+                for newnn in newnets:
+                    newnn.mutate(mut_rate, distrib=random_distrib, lower=random_distrib_range[0], upper=random_distrib_range[1])
+                    creature.setNeuralNetwork(newnn)
+                    sim.addCreature(creature)
 
     # Warmup
     for i in tqdm(range(0,n_neuralnet_processing_steps), desc='Simulation warmup'):
@@ -89,6 +105,7 @@ for j in range(0, n_sims):
 
     sim.printSimulationState()
     bestCreatures = sim.getBestNCreatures(n_reproduced)
+    random.shuffle(bestCreatures)
     
     genInfoRow = {
         'room_layout': sim.getRoomsLayoutValues(),
@@ -100,22 +117,24 @@ for j in range(0, n_sims):
 timeEnd = time.perf_counter()
 timeElapsed = round(timeEnd - timeStart, 1)
 
-# Save data
-output_dir = f'{timeNow.strftime("%d-%m-%Y_%H-%M-%S")}'
+if save_results:
 
-if not os.path.isdir('output'):
-    os.mkdir('output')
-    
-if not os.path.isdir('output/simulations'):
-    os.mkdir('output/simulations')
-    
-os.mkdir(f'output/simulations/{output_dir}')
-os.mkdir(f'output/simulations/{output_dir}/images')
+    # Save data
+    output_dir = f'{timeNow.strftime("%d-%m-%Y_%H-%M-%S")}'
 
-print('\nSaving results')
+    if not os.path.isdir('output'):
+        os.mkdir('output')
+        
+    if not os.path.isdir('output/simulations'):
+        os.mkdir('output/simulations')
+        
+    os.mkdir(f'output/simulations/{output_dir}')
+    os.mkdir(f'output/simulations/{output_dir}/images')
 
-# Prepare markdown template
-markdownTemplate = f"""# Simulation
+    print('\nSaving results')
+
+    # Prepare markdown template
+    markdownTemplate = f"""# Simulation
 
 **Started**: <|start_date|>
 
@@ -127,7 +146,7 @@ markdownTemplate = f"""# Simulation
 
 Variable | Value
 -|-
-Generations | `<|n_sims|>`
+Generations | `<|n_generations|>`
 Room count | `<|n_rooms|>`
 Creature count | `<|n_creatures|>`
 Trap doors | `<|n_trapdoors|>`
@@ -160,89 +179,91 @@ Forbid direct Input-Output connections | <|forbid_direct_io_connections|>
 <|results|>
 <|netimages|>"""
 
-markdownReplace = {
-    '<|start_date|>': str(timeNowStr),
-    '<|time_taken|>': f'{timeElapsed} seconds',
-    '<|n_sims|>': str(n_sims),
-    '<|n_rooms|>': str(n_rooms),
-    '<|n_creatures|>': str(n_creatures),
-    '<|n_trapdoors|>': str(n_trapdoors),
-    '<|n_fakedoors|>': str(n_fakedoors),
-    '<|n_realdoors|>': str(1),
-    '<|n_totaldoors|>': str(n_alldoors),
-    '<|n_neuralnet_processing_steps|>': str(n_neuralnet_processing_steps),
-    '<|n_newnet_creatures_step|>': str(n_newnet_creatures_step),
-    '<|n_reproduced|>': str(n_reproduced),
-    '<|mutation_rate|>': str(mutation_rate),
-    '<|n_input_neurons|>': str(n_input_neurons),
-    '<|n_output_neurons|>': str(n_output_neurons),
-    '<|n_internal_neurons|>': str(n_internal_neurons),
-    '<|n_connections|>': str(n_connections),
-    '<|activation_fn|>': activation_fn.__name__,
-    '<|random_distrib|>': str(random_distrib),
-    '<|random_distrib_range|>': f'`<{random_distrib_range[0]}, {random_distrib_range[1]}>`',
-    '<|forbid_direct_io_connections|>': str(forbid_direct_io_connections)
-}
+    markdownReplace = {
+        '<|start_date|>': str(timeNowStr),
+        '<|time_taken|>': f'{timeElapsed} seconds',
+        '<|n_generations|>': str(n_generations),
+        '<|n_rooms|>': str(n_rooms),
+        '<|n_creatures|>': str(n_creatures),
+        '<|n_trapdoors|>': str(n_trapdoors),
+        '<|n_fakedoors|>': str(n_fakedoors),
+        '<|n_realdoors|>': str(1),
+        '<|n_totaldoors|>': str(n_alldoors),
+        '<|n_neuralnet_processing_steps|>': str(n_neuralnet_processing_steps),
+        '<|n_newnet_creatures_step|>': str(n_newnet_creatures_step),
+        '<|n_reproduced|>': str(n_reproduced),
+        '<|mutation_rate|>': str(mutation_rate),
+        '<|n_input_neurons|>': str(n_input_neurons),
+        '<|n_output_neurons|>': str(n_output_neurons),
+        '<|n_internal_neurons|>': str(n_internal_neurons),
+        '<|n_connections|>': str(n_connections),
+        '<|activation_fn|>': activation_fn.__name__,
+        '<|random_distrib|>': str(random_distrib),
+        '<|random_distrib_range|>': f'`<{random_distrib_range[0]}, {random_distrib_range[1]}>`',
+        '<|forbid_direct_io_connections|>': str(forbid_direct_io_connections)
+    }
 
-# Prepare markdown text
-markdownText = markdownTemplate
-for key, value in markdownReplace.items():
-    markdownText = markdownText.replace(key, value)
+    # Prepare markdown text
+    markdownText = markdownTemplate
+    for key, value in markdownReplace.items():
+        markdownText = markdownText.replace(key, value)
 
-markdownTextResults = ''
-markdownTextNetImages = '## Neural Network Images'
-for i, gen in enumerate(generationInfo):
-    textResults = f"""### Generation {i+1}
+    markdownTextResults = ''
+    markdownTextNetImages = '## Neural Network Images'
+    for i, gen in enumerate(generationInfo):
+        textResults = f"""### Generation {i}
 
 **Best NNs**: <|best_nns|>
 
 Room | Creatures | Layout
 -|-|-<|room_layout|>\n"""
 
-    textNetImages = f"""<|nnets|>"""
-    
-    textRoomLayout = ''
-    for rId in range(n_rooms, 0-1, -1):
-        ridStr = rId+1
-        if rId == n_rooms:
-            ridStr = 'EXIT'
-        if rId == n_rooms:
-            layoutStr = 'None'
-        else:
-            layoutStr = gen['room_layout'][rId]
-        textRoomLayout += f'\n{ridStr} | `{gen['creatures_in_rooms'][rId]}` | `{layoutStr}`'
-    
-    textRoomBestNNS = ''
-    textNetImagesRow = ''
-    for cId, c in enumerate(gen['top_creatures']):
+        textNetImages = f"""<|nnets|>"""
         
-        if cId == len(gen['top_creatures'])-1: sep = ''
-        else: sep = ', '
-        nnName = f'{i+1}_{c['id']}'
-        if save_network_images:
-            textRoomBestNNS += f'[{nnName}](#{nnName}){sep}'
-        else:
-            textRoomBestNNS += f'{nnName}{sep}'
+        textRoomLayout = ''
+        for rId in range(n_rooms, 0-1, -1):
+            ridStr = rId+1
+            if rId == n_rooms:
+                ridStr = 'EXIT'
+            if rId == n_rooms:
+                layoutStr = 'None'
+            else:
+                layoutStr = gen['room_layout'][rId]
+            cirCount = gen['creatures_in_rooms'][rId]
+            if not (cirCount==0 and hide_empty_rooms):
+                textRoomLayout += f'\n{ridStr} | `{gen['creatures_in_rooms'][rId]}` | `{layoutStr}`'
         
-        if save_network_images:
-                if c['creature'].nn.getAllNeuronCount() <= 30:
-                    print(f'Saving image of NN-{nnName}')
-                    textNetImagesRow += f'\n\n### {nnName}\n\n[Back](#generation-{i+1})\n\n![](./images/{nnName}.png)'
-                    c['creature'].nn.saveNetworkImage(f'output/simulations/{output_dir}/images/{nnName}')
-    
-    textResults = textResults.replace('<|room_layout|>', textRoomLayout)
-    textResults = textResults.replace('<|best_nns|>', textRoomBestNNS)
-    markdownTextResults += textResults
-    textNetImages = textNetImages.replace('<|nnets|>', textNetImagesRow)
-    markdownTextNetImages += textNetImages
+        textRoomBestNNS = ''
+        textNetImagesRow = ''
+        for cId, c in enumerate(gen['top_creatures']):
+            
+            if cId == len(gen['top_creatures'])-1: sep = ''
+            else: sep = ', '
+            nnName = f'{i}_{c['id']}'
+            if save_network_images:
+                textRoomBestNNS += f'[{nnName}](#{nnName}){sep}'
+            else:
+                textRoomBestNNS += f'{nnName}{sep}'
+            
+            if save_network_images:
+                    if c['creature'].nn.getAllNeuronCount() <= 30:
+                        print(f'Saving image of NN-{nnName}')
+                        textNetImagesRow += f'\n\n### {nnName}\n\n[Back](#generation-{i})\n\n![](./images/{nnName}.png)'
+                        c['creature'].nn.saveNetworkImage(f'output/simulations/{output_dir}/images/{nnName}')
+        
+        textResults = textResults.replace('<|room_layout|>', textRoomLayout)
+        textResults = textResults.replace('<|best_nns|>', textRoomBestNNS)
+        markdownTextResults += textResults
+        textNetImages = textNetImages.replace('<|nnets|>', textNetImagesRow)
+        markdownTextNetImages += textNetImages
 
-if not save_network_images: markdownTextNetImages = ''
+    if not save_network_images: markdownTextNetImages = ''
 
-markdownText = markdownText.replace('<|results|>', markdownTextResults)
-markdownText = markdownText.replace('<|netimages|>', markdownTextNetImages)
+    markdownText = markdownText.replace('<|results|>', markdownTextResults)
+    markdownText = markdownText.replace('<|netimages|>', markdownTextNetImages)
 
-f = open(f'output/simulations/{output_dir}/index.md', 'w')
-f.write(markdownText)
-f.close()
+    f = open(f'output/simulations/{output_dir}/index.md', 'w')
+    f.write(markdownText)
+    f.close()
 
-print(f'Output at ./output/simulations/{output_dir}/index.md')
+    print(f'Output at ./output/simulations/{output_dir}/index.md')
