@@ -41,6 +41,8 @@ class DoorType(Enum):
 class Simulation():
     def __init__(self) -> None:
         self.rooms = []
+        self.rooms_np = []
+        self.rooms_realdoor_index = []
         self.creatures = []
         self.room_size = 0
     
@@ -48,18 +50,12 @@ class Simulation():
     
     def getCreatureCount(self): return len(self.creatures)
 
-    def addRoom(self, trapDoorCount: int, fakeDoorCount: int, room: list[float] = []) -> None:
+    def addRoom(self, trapDoorCount: int, fakeDoorCount: int) -> None:
         """Creates a room. A room always has only 1 real door.
 
         `trapDoorCount` - specify the amount of trap doors in a room.
 
-        `fakeDoorCount` - specify the amount of fake doors in a room.
-
-        (optional) `room` - a room layout to add. Ignores previous arguments. """
-
-        if len(room) > 0:
-            self.rooms.append(room)
-            return
+        `fakeDoorCount` - specify the amount of fake doors in a room."""
 
         room = []
         for i in range(0, trapDoorCount):
@@ -70,8 +66,18 @@ class Simulation():
 
         room.append(DoorType.REAL)
         random.shuffle(room)
+        
+        room_np = np.zeros((len(room), 1))
+        for i, el in enumerate(room): room_np[i] = el.value
+        room_realdoor_index = room.index(DoorType.REAL)
+        # room = self.rooms[self.creatures[i]['currentRoom']]
+        # roomVals = np.zeros((self.room_size, 1))
+        # for ir, enumval in enumerate(room):
+        #     roomVals[ir] = enumval.value
 
         self.rooms.append(room)
+        self.rooms_np.append(room_np)
+        self.rooms_realdoor_index.append(room_realdoor_index)
 
     def addCreature(self, creature: Creature, startingRoom=0):
         data = {
@@ -90,24 +96,23 @@ class Simulation():
         self.room_size = len(self.rooms[0])
         for el in self.creatures:
             if (not self.creatures[i]['won']) and (not self.creatures[i]['dead']):
-                room = self.rooms[self.creatures[i]['currentRoom']]
-                roomVals = np.zeros((self.room_size, 1))
-                for ir, enumval in enumerate(room):
-                    roomVals[ir] = enumval.value
-                self.creatures[i]['creature'].setInputValues(roomVals)
+                rId = self.creatures[i]['currentRoom']
+                self.creatures[i]['creature'].setInputValues(self.rooms_np[rId])
                 self.creatures[i]['creature'].update()
                 
                 if chooseDoor:
                     output = self.creatures[i]['creature'].getOutputValues()
 
-                    realDoorId = room.index(DoorType.REAL)
+                    realDoorId = self.rooms_realdoor_index[rId]
                     
                     # When neural network chooses the trap door, it kills them.
-                    for dId, d in enumerate(room):
-                        if d == DoorType.TRAP:
+                    dId = 0
+                    for dVal in self.rooms_np[rId]:
+                        if dVal == DoorType.TRAP.value:
                             if output[dId] > confidence_threshold:
                                 self.creatures[i]['dead'] = True
                                 break
+                        dId += 1
                     
                     if not self.creatures[i]['dead']:
                         # When neural network chooses the real door, it advances to the next room.
