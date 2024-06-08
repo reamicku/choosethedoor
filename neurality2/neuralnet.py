@@ -40,19 +40,24 @@ class NeuralNet():
         return self.output_values
 
     def forward(self):
-        self.neuron_output[:self.n_inputs] = np.asarray(self.input_values)
-        
-        sum = np.zeros(self.n_total_neurons)
-        
-        for i in range(self.n_inputs, self.n_total_neurons):
-            masked_values = np.where(self.connections[i], self.neuron_output, 0)
-            sum[i] = np.dot(masked_values.T, self.weights[i]) + self.biases[i]
+        # Set input values directly without a loop
+        self.neuron_output[:self.n_inputs] = self.input_values.flatten()
 
-        self.neuron_output = relu(sum)
-        self.neuron_output[:self.n_inputs] = np.asarray(self.input_values)
+        # Compute the weighted sum using vectorization
+        masked_weights = self.weights * self.connections
+        sum_without_biases = np.dot(masked_weights, self.neuron_output)
+        
+        # Add biases (element-wise operation)
+        sum_with_biases = sum_without_biases + self.biases
 
-        output_ids = range(self.n_inputs, self.n_inputs+self.n_outputs)
-        self.output_values = softmax(self.neuron_output[output_ids])
+        # Apply ReLU activation function using NumPy's maximum function
+        self.neuron_output = relu(sum_with_biases)
+
+        # Extract the output neurons' activations
+        output_activations = self.neuron_output[self.n_inputs:self.n_inputs + self.n_outputs]
+
+        # Apply softmax activation function to the output neurons
+        self.output_values = softmax(output_activations).reshape(-1, 1)
     
     def mutate(self, mutation_rate: float, skip_weights: bool = False, skip_biases: bool = False, skip_connections: bool = False, allow_removing_connections: bool = True):
         if not skip_weights:

@@ -2,6 +2,7 @@ from neurality import NeuralNet
 import neurality2
 from enum import Enum
 import random
+import numpy as np
 
 
 class Creature():
@@ -18,9 +19,8 @@ class Creature():
             return True
         return False
 
-    def setInputValues(self, array: list[float]):
-        if len(array) == self.inputCount:
-            self.inputValues = array
+    def setInputValues(self, array: np.array):
+        self.inputValues = array
 
     def update(self) -> None:
         if isinstance(self.nn, neurality2.NeuralNet):
@@ -28,7 +28,7 @@ class Creature():
             self.nn.forward()
             self.outputValues = self.nn.get_output()
 
-    def getOutputValues(self) -> list[float]:
+    def getOutputValues(self) -> np.array:
         return self.outputValues
 
 
@@ -42,6 +42,7 @@ class Simulation():
     def __init__(self) -> None:
         self.rooms = []
         self.creatures = []
+        self.room_size = 0
     
     def getRoomCount(self): return len(self.rooms)
     
@@ -85,12 +86,14 @@ class Simulation():
     def step(self, chooseDoor=False):
         i = 0
         confidence_threshold = 0.38
+        
+        self.room_size = len(self.rooms[0])
         for el in self.creatures:
             if (not self.creatures[i]['won']) and (not self.creatures[i]['dead']):
                 room = self.rooms[self.creatures[i]['currentRoom']]
-                roomVals = []
-                for enumval in room:
-                    roomVals.append(enumval.value)
+                roomVals = np.zeros((self.room_size, 1))
+                for ir, enumval in enumerate(room):
+                    roomVals[ir] = enumval.value
                 self.creatures[i]['creature'].setInputValues(roomVals)
                 self.creatures[i]['creature'].update()
                 
