@@ -26,7 +26,7 @@ n_generations = 100 # Amount of simulations
 n_neuralnet_processing_steps = 6 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
 n_reproduced = n_creatures//20 # Select N best networks and use them for reproduction (dividable by 2!!!)
-mutation_rate = 0.002 # Mutation rate every simulation
+mutation_rate = 0.01 # Mutation rate every simulation
 
 ### Neural Network
 n_internal_neurons = 8
@@ -56,13 +56,15 @@ generationInfo = []
 # Perform N simulations
 for j in range(0, n_generations):
     if j != 0: print(f'\n========== Generation {j}')
-    sim = Simulation()
+    if j == 0:
+        sim = Simulation()
+    elif static_room_layout:
+        sim.creatures = []
 
     # Create a simulation with N rooms
     if j == 0 or not static_room_layout:
         for i in range(0, n_rooms):
             sim.addRoom(n_trapdoors, n_fakedoors)
-    elif static_room_layout: sim.rooms = generationInfo[j-1]['room_layout_sim']
     
     # Create N creatures
     mut_rate = mutation_rate
@@ -116,7 +118,6 @@ for j in range(0, n_generations):
         'room_layout': sim.getRoomsLayoutValues(),
         'creatures_in_rooms': sim.countCreaturesInRooms(),
         'top_creatures': sim.getBestNCreatures(3),
-        'room_layout_sim': sim.rooms
     }
     generationInfo.append(genInfoRow)
     genInfoRow['top_creatures'][0]['creature'].nn.saveNetworkImage(f'output/rt')
