@@ -1,4 +1,5 @@
 from neurality import NeuralNet
+import neurality2
 from enum import Enum
 import random
 
@@ -11,8 +12,8 @@ class Creature():
         self.inputValues = []
         self.outputValues = []
 
-    def setNeuralNetwork(self, nn: NeuralNet) -> bool:
-        if nn.getInputNeuronCount() == self.inputCount and nn.getOutputNeuronCount() == self.outputCount:
+    def setNeuralNetwork(self, nn: neurality2.NeuralNet) -> bool:
+        if nn.n_inputs == self.inputCount and nn.n_outputs == self.outputCount:
             self.nn = nn
             return True
         return False
@@ -22,10 +23,10 @@ class Creature():
             self.inputValues = array
 
     def update(self) -> None:
-        if isinstance(self.nn, NeuralNet):
-            self.nn.setInputNeuronValues(self.inputValues)
-            self.nn.cycle()
-            self.outputValues = self.nn.getOutputNeuronValues(useSoftmax=True)
+        if isinstance(self.nn, neurality2.NeuralNet):
+            self.nn.set_input(self.inputValues)
+            self.nn.forward()
+            self.outputValues = self.nn.get_output()
 
     def getOutputValues(self) -> list[float]:
         return self.outputValues
@@ -83,6 +84,7 @@ class Simulation():
 
     def step(self, chooseDoor=False):
         i = 0
+        confidence_threshold = 0.38
         for el in self.creatures:
             if (not self.creatures[i]['won']) and (not self.creatures[i]['dead']):
                 room = self.rooms[self.creatures[i]['currentRoom']]
@@ -100,13 +102,13 @@ class Simulation():
                     # When neural network chooses the trap door, it kills them.
                     for dId, d in enumerate(room):
                         if d == DoorType.TRAP:
-                            if output[dId] > 0.5:
+                            if output[dId] > confidence_threshold:
                                 self.creatures[i]['dead'] = True
                                 break
                     
                     if not self.creatures[i]['dead']:
                         # When neural network chooses the real door, it advances to the next room.
-                        if output[realDoorId] > 0.5:
+                        if output[realDoorId] > confidence_threshold:
                             self.creatures[i]['currentRoom'] += 1
                             if self.creatures[i]['currentRoom'] > self.getRoomCount()-1:
                                 self.creatures[i]['won'] = True
@@ -139,7 +141,7 @@ class Simulation():
 
     def getCreaturesIDsInRooms(self) -> list[int]:
         out = []
-        for i in range(self.getRoomCount()): out.append(self.getCreaturesIDsInRoom(i))
+        for i in range(self.getRoomCount()+1): out.append(self.getCreaturesIDsInRoom(i))
         return out
 
     def getFurthestCreatureIDs(self):

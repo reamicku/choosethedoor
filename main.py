@@ -1,5 +1,6 @@
 from neurality import NeuralNet, Distribution, ActivationFn
 from neurality.utils import generate_non_overlapping_pairs
+import neurality2
 from ctdsim.elements import *
 import copy
 from tqdm import tqdm
@@ -8,26 +9,30 @@ import os
 import shutil
 from datetime import datetime
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 
 ##### Define values #####
 ### Simulation variables
-n_rooms = 25
+n_rooms = 20
 n_trapdoors = 4
 n_fakedoors = 0
 n_creatures = 1000
+static_room_layout = True
 
 ### Simulation variables cont.
-n_generations = 10 # Amount of simulations
+n_generations = 100 # Amount of simulations
 n_neuralnet_processing_steps = 6 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
-n_reproduced = 50 # Select N best networks and use them for reproduction (dividable by 2!!!)
-mutation_rate = 0.01 # Mutation rate every simulation
+n_reproduced = n_creatures//20 # Select N best networks and use them for reproduction (dividable by 2!!!)
+mutation_rate = 0.002 # Mutation rate every simulation
 
 ### Neural Network
 n_internal_neurons = 8
-n_connections = 40
+n_connection_perc = 0.0
 forbid_direct_io_connections = False
-activation_fn = ActivationFn.LEAKY_RELU
+activation_fn = ActivationFn.TANH
 random_distrib = Distribution.HE
 random_distrib_range = [-4.0, 4.0]
 
@@ -50,28 +55,32 @@ generationInfo = []
 
 # Perform N simulations
 for j in range(0, n_generations):
-    if j != 0: print(f'========== Generation {j+1}')
+    if j != 0: print(f'\n========== Generation {j}')
     sim = Simulation()
 
     # Create a simulation with N rooms
-    for i in range(0, n_rooms):
-        sim.addRoom(n_trapdoors, n_fakedoors)
+    if j == 0 or not static_room_layout:
+        for i in range(0, n_rooms):
+            sim.addRoom(n_trapdoors, n_fakedoors)
+    elif static_room_layout: sim.rooms = generationInfo[j-1]['room_layout_sim']
     
     # Create N creatures
     mut_rate = mutation_rate
-    if j == 0: mut_rate = 1.0
+    # if j == 0: mut_rate = 1.0
     
     for i in tqdm(range(0, n_creatures), desc='Creating creatures'):
-        creature = Creature(n_alldoors, n_alldoors)
 
         if j == 0:
             if i % n_newnet_creatures_step == 0:
-                while True:
-                    nn = NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connections, activation_fn=activation_fn, forbidDirectIOConnections=forbid_direct_io_connections)
-                    if nn.isAllInputOutputConnected():
-                        break
+                nn = neurality2.NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc)
+                # Solution network
+                # for i in range(0, n_input_neurons):
+                #     nn.connections[i+5, i] = 1
+                #     nn.weights[i+5, i] = 1.0
+                #     nn.biases[i+5] = 0
             newnn = copy.deepcopy(nn)
-            newnn.mutate(mut_rate, distrib=random_distrib, lower=random_distrib_range[0], upper=random_distrib_range[1])
+            newnn.mutate(mut_rate)
+            creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(newnn)
             sim.addCreature(creature)
         else:
@@ -80,15 +89,11 @@ for j in range(0, n_generations):
                 parent1 = bestCreatures[cId - 1]['creature'].nn
                 parent2 = bestCreatures[cId - 0]['creature'].nn
                 crossover_point = random.random()
-                n_crossover_points = 2
-                crossover_points = []
-                for p in range(0, n_crossover_points):
-                    crossover_points.append(random.random())
-                crossover_points.sort()
-                newnets = NeuralNet.kPointCrossover(parent1, parent2, crossover_points)
+                newnets = neurality2.NeuralNet.one_point_crossover(parent1, parent2, crossover_point)
                 random_distrib = Distribution.HE
                 for newnn in newnets:
-                    newnn.mutate(mut_rate, distrib=random_distrib, lower=random_distrib_range[0], upper=random_distrib_range[1])
+                    newnn.mutate(mut_rate)
+                    creature = Creature(n_alldoors, n_alldoors)
                     creature.setNeuralNetwork(newnn)
                     sim.addCreature(creature)
 
@@ -110,9 +115,11 @@ for j in range(0, n_generations):
     genInfoRow = {
         'room_layout': sim.getRoomsLayoutValues(),
         'creatures_in_rooms': sim.countCreaturesInRooms(),
-        'top_creatures': sim.getBestNCreatures(3)
+        'top_creatures': sim.getBestNCreatures(3),
+        'room_layout_sim': sim.rooms
     }
     generationInfo.append(genInfoRow)
+    genInfoRow['top_creatures'][0]['creature'].nn.saveNetworkImage(f'output/rt')
     
 timeEnd = time.perf_counter()
 timeElapsed = round(timeEnd - timeStart, 1)
@@ -196,7 +203,7 @@ Forbid direct Input-Output connections | <|forbid_direct_io_connections|>
         '<|n_input_neurons|>': str(n_input_neurons),
         '<|n_output_neurons|>': str(n_output_neurons),
         '<|n_internal_neurons|>': str(n_internal_neurons),
-        '<|n_connections|>': str(n_connections),
+        '<|n_connections|>': str(n_connection_perc),
         '<|activation_fn|>': activation_fn.__name__,
         '<|random_distrib|>': str(random_distrib),
         '<|random_distrib_range|>': f'`<{random_distrib_range[0]}, {random_distrib_range[1]}>`',
@@ -231,7 +238,7 @@ Room | Creatures | Layout
                 layoutStr = gen['room_layout'][rId]
             cirCount = gen['creatures_in_rooms'][rId]
             if not (cirCount==0 and hide_empty_rooms):
-                textRoomLayout += f'\n{ridStr} | `{gen['creatures_in_rooms'][rId]}` | `{layoutStr}`'
+                textRoomLayout += f'\n{ridStr} | `{gen["creatures_in_rooms"][rId]}` | `{layoutStr}`'
         
         textRoomBestNNS = ''
         textNetImagesRow = ''
@@ -239,14 +246,14 @@ Room | Creatures | Layout
             
             if cId == len(gen['top_creatures'])-1: sep = ''
             else: sep = ', '
-            nnName = f'{i}_{c['id']}'
+            nnName = f'{i}_{c["id"]}'
             if save_network_images:
                 textRoomBestNNS += f'[{nnName}](#{nnName}){sep}'
             else:
                 textRoomBestNNS += f'{nnName}{sep}'
             
             if save_network_images:
-                    if c['creature'].nn.getAllNeuronCount() <= 30:
+                    if c['creature'].nn.n_total_neurons <= 30:
                         print(f'Saving image of NN-{nnName}')
                         textNetImagesRow += f'\n\n### {nnName}\n\n[Back](#generation-{i})\n\n![](./images/{nnName}.png)'
                         c['creature'].nn.saveNetworkImage(f'output/simulations/{output_dir}/images/{nnName}')
