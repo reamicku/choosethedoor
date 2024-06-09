@@ -78,39 +78,56 @@ class NeuralNet():
                             self.connections[i, j] = 1
     
     def one_point_crossover(parent1: 'NeuralNet', parent2: 'NeuralNet', point: float) -> list['NeuralNet']:
-        """Performs one-point crossover between self and partner and returns two child networks.
-        
-        `partner` - Other neural network
-        
-        `point` - A point where to perform the crossover. Ranges between `<0, 1>`."""
         assert parent1.n_total_neurons == parent2.n_total_neurons, "self and partner must have the same structure"
         
-        neuron_count = parent1.n_total_neurons
-        nc_count = parent1.n_total_neurons
+        neuron_point = int(np.floor(point * parent1.n_total_neurons))
         
-        neuron_point = math.floor(point * neuron_count)
-        nc_point = math.floor(point * nc_count)
+        # Create child networks by directly copying the parents
+        child1 = copy.deepcopy(parent1)
+        child2 = copy.deepcopy(parent2)
         
-        child1 = copy.deepcopy(parent2)
-        child2 = copy.deepcopy(parent1)
+        # Swap biases beyond the crossover point
+        child1.biases[neuron_point:] = parent2.biases[neuron_point:]
+        child2.biases[neuron_point:] = parent1.biases[neuron_point:]
         
-        for i in range(neuron_point, neuron_count):
-            child1.biases[i] = parent1.biases[i]
-            child2.biases[i] = parent2.biases[i]
+        # Swap weights beyond the crossover point
+        # Since the weights are a square matrix, we only need to calculate the point once
+        child1.weights[neuron_point:, :] = parent2.weights[neuron_point:, :]
+        child2.weights[neuron_point:, :] = parent1.weights[neuron_point:, :]
         
-        n = 0
-        for i in range(0, nc_count):
-            for j in range(0, nc_count):
-                if n/(nc_count**nc_count) >= point:
-                    child1.weights[i, j] = parent2.weights[i, j]
-                    child2.weights[i, j] = parent2.weights[i, j]
-                n = n + 1
-            
+        return [child1, child2]
+
+    def multi_point_crossover(parent1: 'NeuralNet', parent2: 'NeuralNet', num_points: int) -> list['NeuralNet']:
+        assert parent1.n_total_neurons == parent2.n_total_neurons, "self and partner must have the same structure"
+        
+        # Create child networks by directly copying the parents
+        child1 = copy.deepcopy(parent1)
+        child2 = copy.deepcopy(parent2)
+        
+        # Determine crossover points for biases
+        crossover_points = np.sort(np.random.choice(parent1.n_total_neurons, num_points + 1, replace=False))
+        
+        # Perform crossover for biases
+        for i in range(len(crossover_points) - 1):
+            start, end = crossover_points[i], crossover_points[i + 1]
+            child1.biases[start:end] = parent2.biases[start:end]
+            child2.biases[start:end] = parent1.biases[start:end]
+        
+        # Determine crossover points for weights (same points for both dimensions)
+        crossover_points = np.sort(np.random.choice(parent1.n_total_neurons, num_points + 1, replace=False))
+        
+        # Perform crossover for weights
+        for i in range(len(crossover_points) - 1):
+            start, end = crossover_points[i], crossover_points[i + 1]
+            # Swap weights in both dimensions
+            child1.weights[start:end, :] = parent2.weights[start:end, :]
+            child2.weights[:, start:end] = parent2.weights[:, start:end]
+        
         return [child1, child2]
     
     # Visualizing network
     
-    def getNetworkArchitecture(self):
+    def get_network_architecture(self):
         network = {'layers': [], 'connections': []}
         # insert input neurons
         inputRange = range(0, self.n_inputs)
@@ -156,9 +173,9 @@ class NeuralNet():
         
         return network
     
-    def saveNetworkImage(self, filePath: str, format: str = 'png', internalIDs: bool = False):
+    def save_network_image(self, filePath: str, format: str = 'png', internalIDs: bool = False):
         """Saves an image of the neural network to a `filepath`."""
-        nnNetwork = self.getNetworkArchitecture()
+        nnNetwork = self.get_network_architecture()
 
         # Create a new directed graph
         dot = Digraph(comment='Neural Network')
