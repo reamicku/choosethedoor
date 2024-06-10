@@ -67,7 +67,7 @@ class Simulation():
         room.append(DoorType.REAL)
         random.shuffle(room)
         
-        room_np = np.zeros((len(room), 1))
+        room_np = np.zeros(len(room))
         for i, el in enumerate(room): room_np[i] = el.value
         room_realdoor_index = room.index(DoorType.REAL)
         # room = self.rooms[self.creatures[i]['currentRoom']]
@@ -85,13 +85,16 @@ class Simulation():
             'creature': creature,
             'currentRoom': startingRoom,
             'won': False,
-            'dead': False
+            'dead': False,
+            'confidence': 0.0,
+            'confidenceSum': 0.0,
+            'decisions': 0,
+            'fitness': 0.0
         }
         self.creatures.append(data)
 
     def step(self, chooseDoor=False):
         i = 0
-        confidence_threshold = 0.38
         
         self.room_size = len(self.rooms[0])
         for el in self.creatures:
@@ -105,21 +108,22 @@ class Simulation():
 
                     realDoorId = self.rooms_realdoor_index[rId]
                     
-                    # When neural network chooses the trap door, it kills them.
-                    dId = 0
-                    for dVal in self.rooms_np[rId]:
-                        if dVal == DoorType.TRAP.value:
-                            if output[dId] > confidence_threshold:
-                                self.creatures[i]['dead'] = True
-                                break
-                        dId += 1
+                    self.creatures[i]['confidenceSum'] += output[realDoorId][0]
+                    self.creatures[i]['decisions'] += 1
+                    self.creatures[i]['confidence'] = self.creatures[i]['confidenceSum'] / self.creatures[i]['decisions']
+                    self.creatures[i]['fitness'] = self.creatures[i]['currentRoom'] + self.creatures[i]['confidence']
                     
-                    if not self.creatures[i]['dead']:
-                        # When neural network chooses the real door, it advances to the next room.
-                        if output[realDoorId] > confidence_threshold:
+                    chosenDoorId = np.argmax(output)
+                    if chosenDoorId != realDoorId:
+                        if self.rooms[rId][chooseDoor] is DoorType.TRAP:
+                            self.creatures[i]['dead'] = True
+                    else:
+                        if not self.creatures[i]['dead']:
+                            # When neural network chooses the real door, it advances to the next room.
                             self.creatures[i]['currentRoom'] += 1
                             if self.creatures[i]['currentRoom'] > self.getRoomCount()-1:
                                 self.creatures[i]['won'] = True
+                                self.creatures[i]['fitness'] = self.creatures[i]['currentRoom'] + self.creatures[i]['confidence']
             i += 1
 
     def countCreaturesInRooms(self) -> list[int]:
@@ -173,16 +177,19 @@ class Simulation():
             out.append(self.creatures[i])
         return out
     
-    def getBestNCreatures(self, n: int = 1):
-        creaturesInRooms = self.getCreaturesIDsInRooms()
+    def getBestNCreatures(self, n: int = 1, skipDead: bool = False):
+        fitness_dict = {}
+        for i in range(0, len(self.creatures)):
+            fitness_dict.update({i: self.creatures[i]['fitness']})
+        sorted_fitness_dict = dict(sorted(fitness_dict.items(), key=lambda x: x[1], reverse=True))
         
         out = []
         outN = 0
-        for i, room in reversed(list(enumerate(creaturesInRooms))):
-            for cId in room:
-                out.append(self.creatures[cId])
-                outN += 1
-                if outN >= n: return out
+        for key, value in sorted_fitness_dict.items():
+            if skipDead and self.creatures[key]['dead']: continue
+            out.append(self.creatures[key])
+            outN += 1
+            if outN >= n: break
         return out
 
     def getCreaturesInRoom(self, min_room: int, max_room: int):
