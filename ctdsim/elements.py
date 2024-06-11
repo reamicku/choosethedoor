@@ -1,4 +1,3 @@
-from neurality import NeuralNet
 import neurality2
 from enum import Enum
 import random

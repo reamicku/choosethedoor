@@ -1,5 +1,3 @@
-from neurality import NeuralNet, Distribution, ActivationFn
-from neurality.utils import generate_non_overlapping_pairs
 import neurality2
 from ctdsim.elements import *
 import copy
@@ -15,26 +13,22 @@ from mpl_toolkits.mplot3d import Axes3D
 
 ##### Define values #####
 ### Simulation variables
-n_rooms = 25
-n_trapdoors = 4
-n_fakedoors = 0
+n_rooms = 10
+n_trapdoors = 1
+n_fakedoors = 3
 n_creatures = 1000
 static_room_layout = False
 
 ### Simulation variables cont.
-n_generations = 100 # Amount of simulations
+n_generations = 50 # Amount of simulations
 n_neuralnet_processing_steps = 4 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
-n_reproduced = n_creatures//100 # Select N best networks and use them for reproduction (dividable by 2!!!)
-mutation_rate = 0.001 # Mutation rate every simulation
+n_reproduced = n_creatures//20 # Select N best networks and use them for reproduction (dividable by 2!!!)
+mutation_rate = 0.006 # Mutation rate every simulation
 
 ### Neural Network
-n_internal_neurons = 8
+n_internal_neurons = 4
 n_connection_perc = 0.0
-forbid_direct_io_connections = False
-activation_fn = ActivationFn.TANH
-random_distrib = Distribution.HE
-random_distrib_range = [-4.0, 4.0]
 
 ### Misc
 save_results = True
@@ -79,7 +73,7 @@ for j in range(0, n_generations):
             if i % n_newnet_creatures_step == 0:
                 nn = neurality2.NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc)
             newnn = copy.deepcopy(nn)
-            newnn.mutate(mut_rate)
+            # newnn.mutate(mut_rate)
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(newnn)
             sim.addCreature(creature)
@@ -89,18 +83,12 @@ for j in range(0, n_generations):
                 parent1 = bestCreatures[cId - 1]['creature'].nn
                 parent2 = bestCreatures[cId - 0]['creature'].nn
                 crossover_point = random.random()
-                # newnets = neurality2.NeuralNet.one_point_crossover(parent1, parent2, crossover_point)
                 newnets = neurality2.NeuralNet.multi_point_crossover(parent1, parent2, num_points=2)
-                random_distrib = Distribution.HE
                 for newnn in newnets:
                     newnn.mutate(mut_rate)
                     creature = Creature(n_alldoors, n_alldoors)
                     creature.setNeuralNetwork(newnn)
                     sim.addCreature(creature)
-
-    # # Warmup
-    # for i in tqdm(range(0,n_neuralnet_processing_steps), desc='Simulation warmup'):
-    #     sim.step()
 
     # Simulate
     for i in tqdm(range(0, n_rooms*n_neuralnet_processing_steps+1), desc='Simulating'):
@@ -179,10 +167,7 @@ Input neuron count | `<|n_input_neurons|>`
 Output neuron count | `<|n_output_neurons|>`
 Internal neuron count | `<|n_internal_neurons|>`
 Connection count | `<|n_connections|>`
-Random distribution range | <|random_distrib_range|>
-Random distribution | <|random_distrib|>
 Activation Function | <|activation_fn|>
-Forbid direct Input-Output connections | <|forbid_direct_io_connections|>
 
 ## Results
 
@@ -207,10 +192,7 @@ Forbid direct Input-Output connections | <|forbid_direct_io_connections|>
         '<|n_output_neurons|>': str(n_output_neurons),
         '<|n_internal_neurons|>': str(n_internal_neurons),
         '<|n_connections|>': str(n_connection_perc),
-        '<|activation_fn|>': activation_fn.__name__,
-        '<|random_distrib|>': str(random_distrib),
-        '<|random_distrib_range|>': f'`<{random_distrib_range[0]}, {random_distrib_range[1]}>`',
-        '<|forbid_direct_io_connections|>': str(forbid_direct_io_connections)
+        '<|activation_fn|>': 'relu',
     }
 
     # Prepare markdown text
