@@ -32,7 +32,7 @@ n_connection_perc = 0.0
 
 ### Misc
 save_results = True
-save_network_images = False
+save_network_images = True
 show_realtime_network_preview = True
 hide_empty_rooms = True
 #########################
@@ -49,7 +49,7 @@ n_output_neurons = n_alldoors
 generationInfo = []
 
 # Perform N simulations
-for j in range(0, n_generations):
+for j in range(0, n_generations + 1):
     if j != 0: print(f'\n========== Generation {j}')
     if j == 0:
         sim = Simulation()
@@ -64,19 +64,16 @@ for j in range(0, n_generations):
             sim.addRoom(n_trapdoors, n_fakedoors)
     
     # Create N creatures
-    mut_rate = mutation_rate
-    # if j == 0: mut_rate = 1.0
-    
     for i in range(0, n_creatures):
-
+        # First generation
         if j == 0:
             if i % n_newnet_creatures_step == 0:
                 nn = neurality2.NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc)
             newnn = copy.deepcopy(nn)
-            # newnn.mutate(mut_rate)
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(newnn)
             sim.addCreature(creature)
+        # Next generations (children)
         else:
             if (i%2 == 1):
                 cId = i % n_reproduced
@@ -85,7 +82,7 @@ for j in range(0, n_generations):
                 crossover_point = random.random()
                 newnets = neurality2.NeuralNet.multi_point_crossover(parent1, parent2, num_points=2)
                 for newnn in newnets:
-                    newnn.mutate(mut_rate)
+                    newnn.mutate(mutation_rate)
                     creature = Creature(n_alldoors, n_alldoors)
                     creature.setNeuralNetwork(newnn)
                     sim.addCreature(creature)
