@@ -21,11 +21,11 @@ class NeuralNet():
         self.neuron_output = np.zeros(self.n_total_neurons)
 
         self.init_connections(connection_prob)
-        self.mutate(1.0)
+        self.mutate(1.0, skip_connections=True)
 
     def init_connections(self, connection_prob: float):
         self.connections = np.random.binomial(
-            1, 1-connection_prob, (self.n_total_neurons, self.n_total_neurons))
+            1, connection_prob, (self.n_total_neurons, self.n_total_neurons))
         for i in range(0, self.n_inputs):
             self.connections[i] = np.zeros(self.n_total_neurons)
         
