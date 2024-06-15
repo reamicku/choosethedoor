@@ -109,7 +109,9 @@ def multi_point_crossover(
         start, end = crossover_points[i], crossover_points[i + 1]
         # Swap weights in both dimensions
         child1.weights[start:end, :] = parent2.weights[start:end, :]
-        child2.weights[:, start:end] = parent2.weights[:, start:end]
+        child2.weights[start:end, :] = parent1.weights[start:end, :]
+        child1.weights[:, start:end] = parent2.weights[:, start:end]
+        child2.weights[:, start:end] = parent1.weights[:, start:end]
 
     return [child1, child2]
 
@@ -147,18 +149,18 @@ class NeuralNet:
     def __init__(
         self, n_inputs: int, n_outputs: int, n_hidden: int, connection_prob: float = 0.5
     ) -> None:
-        self.n_inputs = n_inputs
-        self.n_outputs = n_outputs
-        self.n_hidden = n_hidden
-        self.n_total_neurons = self.n_inputs + self.n_outputs + self.n_hidden
+        self.n_inputs: int = n_inputs
+        self.n_outputs: int = n_outputs
+        self.n_hidden: int = n_hidden
+        self.n_total_neurons: int = self.n_inputs + self.n_outputs + self.n_hidden
 
-        self.weights = np.zeros((self.n_total_neurons, self.n_total_neurons))
-        self.biases = np.zeros(self.n_total_neurons)
-        self.connections = np.zeros((self.n_total_neurons, self.n_total_neurons))
+        self.weights: np.ndarray = np.zeros((self.n_total_neurons, self.n_total_neurons))
+        self.biases: np.ndarray = np.zeros(self.n_total_neurons)
+        self.connections: np.ndarray = np.zeros((self.n_total_neurons, self.n_total_neurons))
 
-        self.input_values = np.zeros((self.n_inputs, 1))
-        self.output_values = np.zeros((self.n_outputs, 1))
-        self.neuron_output = np.zeros(self.n_total_neurons)
+        self.input_values: np.ndarray = np.zeros((self.n_inputs, 1))
+        self.output_values: np.ndarray = np.zeros((self.n_outputs, 1))
+        self.neuron_output: np.ndarray = np.zeros(self.n_total_neurons)
 
         self.init_connections(connection_prob)
         self.mutate(1.0, skip_connections=True)
@@ -175,7 +177,7 @@ class NeuralNet:
         and output neurons do not have incoming connections from hidden or other output
         neurons, nor outgoing connections to any neurons except the output values.
         """
-        self.connections = np.random.binomial(
+        self.connections: np.ndarray = np.random.binomial(
             1, connection_prob, (self.n_total_neurons, self.n_total_neurons)
         )
         # Enforce no outgoing connections from input neurons
@@ -222,22 +224,22 @@ class NeuralNet:
         self.neuron_output[: self.n_inputs] = self.input_values.flatten()
 
         # Compute the weighted sum using vectorization
-        masked_weights = self.weights * self.connections
-        sum_without_biases = np.dot(masked_weights, self.neuron_output)
+        masked_weights: np.ndarray = self.weights * self.connections
+        sum_without_biases: np.ndarray = np.dot(masked_weights, self.neuron_output)
 
         # Add biases (element-wise operation)
-        sum_with_biases = sum_without_biases + self.biases
+        sum_with_biases: np.ndarray = sum_without_biases + self.biases
 
         # Apply ReLU activation function using NumPy's maximum function
         self.neuron_output = relu(sum_with_biases)
 
         # Extract the output neurons' activations
-        output_activations = self.neuron_output[
+        output_activations: np.ndarray = self.neuron_output[
             self.n_inputs : self.n_inputs + self.n_outputs
         ]
 
         # Apply softmax activation function to the output neurons
-        self.output_values = softmax(output_activations).reshape(-1, 1)
+        self.output_values: np.ndarray = softmax(output_activations).reshape(-1, 1)
 
     def mutate(
         self,
