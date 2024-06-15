@@ -2,3 +2,4 @@ numpy
 graphviz
 tqdm
 matplotlib
+pandas

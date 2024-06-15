@@ -1,26 +1,23 @@
-import neurality2
 from ctdsim.elements import *
 import copy
 from tqdm import tqdm
 import time
 import os
-import shutil
 from datetime import datetime
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from neurality2.neuralnet import NeuralNet, multi_point_crossover, one_point_crossover
 
 
 ##### Define values #####
 ### Simulation variables
 n_rooms = 10
-n_trapdoors = 1
-n_fakedoors = 3
+n_trapdoors = 0
+n_fakedoors = 4
 n_creatures = 1000
 static_room_layout = False
 
 ### Simulation variables cont.
-n_generations = 50 # Amount of simulations
+n_generations = 100 # Amount of simulations
 n_neuralnet_processing_steps = 4 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
 n_reproduced = n_creatures//20 # Select N best networks and use them for reproduction (dividable by 2!!!)
@@ -32,7 +29,7 @@ n_connection_perc = 0.0
 
 ### Misc
 save_results = True
-save_network_images = True
+save_network_images = False
 show_realtime_network_preview = True
 hide_empty_rooms = True
 #########################
@@ -48,27 +45,31 @@ n_output_neurons = n_alldoors
 
 generationInfo = []
 
+sim: Simulation = Simulation()
+bestCreatures = []
+
 # Perform N simulations
 for j in range(0, n_generations + 1):
-    if j != 0: print(f'\n========== Generation {j}')
-    if j == 0:
+    if j != 0:
+        print(f'\n========== Generation {j}')
+    if j == 0 or (not static_room_layout):
         sim = Simulation()
-    elif static_room_layout:
+    elif static_room_layout and isinstance(sim, Simulation):
         sim.creatures = []
-    elif not static_room_layout:
-        sim = Simulation()
 
     # Create a simulation with N rooms
-    if j == 0 or not static_room_layout:
+    if j == 0 or (not static_room_layout):
         for i in range(0, n_rooms):
             sim.addRoom(n_trapdoors, n_fakedoors)
-    
+
+    nn: NeuralNet = NeuralNet(1,1,1,0.0)
+
     # Create N creatures
     for i in range(0, n_creatures):
         # First generation
         if j == 0:
             if i % n_newnet_creatures_step == 0:
-                nn = neurality2.NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc)
+                nn = NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc)
             newnn = copy.deepcopy(nn)
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(newnn)
@@ -80,7 +81,7 @@ for j in range(0, n_generations + 1):
                 parent1 = bestCreatures[cId - 1]['creature'].nn
                 parent2 = bestCreatures[cId - 0]['creature'].nn
                 crossover_point = random.random()
-                newnets = neurality2.NeuralNet.multi_point_crossover(parent1, parent2, num_points=2)
+                newnets = one_point_crossover(parent1, parent2, crossover_point)
                 for newnn in newnets:
                     newnn.mutate(mutation_rate)
                     creature = Creature(n_alldoors, n_alldoors)
@@ -103,8 +104,7 @@ for j in range(0, n_generations + 1):
         'creatures_in_rooms': sim.countCreaturesInRooms(),
         'top_creatures': sim.getBestNCreatures(3),
     }
-    print(f'Best fitness: {genInfoRow['top_creatures'][0]['fitness']:.2f}')
-    print(f'Best confidence: {100*genInfoRow['top_creatures'][0]['confidence']:.2f}%')
+    print(f'Best fitness: {genInfoRow['top_creatures'][0]['fitness']:.4f}')
     generationInfo.append(genInfoRow)
     if show_realtime_network_preview:
         genInfoRow['top_creatures'][0]['creature'].nn.save_network_image(f'output/rt')
@@ -129,7 +129,7 @@ if save_results:
     print('\nSaving results')
 
     # Prepare markdown template
-    markdownTemplate = f"""# Simulation
+    markdownTemplate = """# Simulation
 
 **Started**: <|start_date|>
 
@@ -207,7 +207,7 @@ Activation Function | <|activation_fn|>
 Room | Creatures | Layout
 -|-|-<|room_layout|>\n"""
 
-        textNetImages = f"""<|nnets|>"""
+        textNetImages = """<|nnets|>"""
         
         textRoomLayout = ''
         for rId in range(n_rooms, 0-1, -1):
@@ -251,7 +251,7 @@ Room | Creatures | Layout
     markdownText = markdownText.replace('<|results|>', markdownTextResults)
     markdownText = markdownText.replace('<|netimages|>', markdownTextNetImages)
 
-    f = open(f'output/simulations/{output_dir}/index.md', 'w')
+    f = open(f'output/simulations/{output_dir}/index.md', 'w', encoding='utf-8')
     f.write(markdownText)
     f.close()
 

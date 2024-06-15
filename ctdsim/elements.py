@@ -2,6 +2,10 @@ import neurality2
 from enum import Enum
 import random
 import numpy as np
+from os import path
+from tqdm import tqdm
+from datetime import datetime
+import pandas as pd
 
 
 class Creature():
@@ -9,8 +13,8 @@ class Creature():
         self.inputCount = inputCount
         self.outputCount = outputCount
         self.nn = None
-        self.inputValues = []
-        self.outputValues = []
+        self.inputValues: np.ndarray = np.zeros(self.inputCount)
+        self.outputValues: np.ndarray = np.zeros(self.outputCount)
 
     def setNeuralNetwork(self, nn: neurality2.NeuralNet) -> bool:
         if nn.n_inputs == self.inputCount and nn.n_outputs == self.outputCount:
@@ -18,8 +22,8 @@ class Creature():
             return True
         return False
 
-    def setInputValues(self, array: np.array):
-        self.inputValues = array
+    def setInputValues(self, array: np.ndarray):
+        self.inputValues: np.ndarray = array
 
     def update(self) -> None:
         if isinstance(self.nn, neurality2.NeuralNet):
@@ -27,7 +31,7 @@ class Creature():
             self.nn.forward()
             self.outputValues = self.nn.get_output()
 
-    def getOutputValues(self) -> np.array:
+    def getOutputValues(self) -> np.ndarray:
         return self.outputValues
 
 
@@ -70,10 +74,6 @@ class Simulation():
         for i, el in enumerate(room):
             room_np[i] = el.value
         room_realdoor_index = room.index(DoorType.REAL)
-        # room = self.rooms[self.creatures[i]['currentRoom']]
-        # roomVals = np.zeros((self.room_size, 1))
-        # for ir, enumval in enumerate(room):
-        #     roomVals[ir] = enumval.value
 
         self.rooms.append(room)
         self.rooms_np.append(room_np)
@@ -223,3 +223,71 @@ class Simulation():
         for i in range(0, self.getRoomCount()):
             out.append(self.getRoomLayoutValues(i))
         return out
+
+
+class CTDSimulator():
+    def __init__(self, settings: dict) -> None:
+        self.settings = self.get_default_settings()
+        self.settings.update(settings)
+        self.statistics ={}
+
+    @staticmethod
+    def get_default_settings() -> dict:
+        settings = {
+            'n_rooms': 10,
+            'n_trapdoors': 1,
+            'n_fakedoors': 3,
+            'n_creatures': 1000,
+            'static_room_layout': False,
+            'n_generations': 30,
+            'n_neuralnet_processing_steps': 4,
+            'n_reproduced': 100,
+            'mutation_rate': 0.006,
+            'n_neuralnet_internal_neurons': 4,
+            'n_neuralnet_connection_prob': 0.0,
+            'save_results': True,
+            'save_network_images': True,
+            'save_network_realtime_preview': True,
+            'result_directory': 'output',
+            'print_generation_info': True,
+            'print_debug_info': False,
+        }
+
+        return settings
+    
+    @staticmethod
+    def get_time_difference(dt1: datetime, dt2: datetime) -> str:
+        diff = abs(dt2 - dt1)
+
+        seconds = diff.seconds
+        hours, seconds = divmod(seconds, 3600)
+        minutes, seconds = divmod(seconds, 60)
+
+        if hours > 0:
+            return f'{hours} hours, {minutes:02} minutes and {seconds:02} seconds'
+        elif minutes > 0:
+            return f'{minutes} minutes and {seconds:02} seconds'
+        else:
+            return f'{seconds} seconds'
+
+    def simulate_generation_zero(self) -> None:
+        pass
+
+    def simulate_next_generation(self) -> None:
+        pass
+
+    def simulate(self) -> None:
+        begin_time = datetime.now()
+        self.statistics.update({
+            'time': {
+                'begin': begin_time
+            }
+        })
+
+        end_time = datetime.now()
+        self.statistics.update({
+            'time': {
+                'end': end_time,
+                'elapsed': self.get_time_difference(begin_time, end_time)
+            }
+        })
