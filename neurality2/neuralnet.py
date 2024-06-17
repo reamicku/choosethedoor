@@ -200,14 +200,23 @@ class NeuralNet:
         """
         self.input_values = input_array.reshape(self.n_inputs, -1)
 
-    def get_output(self) -> np.ndarray:
+    def get_output(self, apply_softmax: bool = True) -> np.ndarray:
         """
         Retrieve the output values from the network after forward propagation.
 
         Returns:
             np.ndarray: The output values of the network as a one-dimensional numpy array.
         """
-        return self.output_values
+        # Extract the output neurons' activations
+        output_activations: np.ndarray = self.neuron_output[
+            self.n_inputs : self.n_inputs + self.n_outputs
+        ]
+
+        if apply_softmax:
+        # Apply softmax activation function to the output neurons
+            return softmax(output_activations).reshape(-1, 1)
+        else:
+            return output_activations
 
     def forward(self):
         """
@@ -223,23 +232,10 @@ class NeuralNet:
         # Set input values directly without a loop
         self.neuron_output[: self.n_inputs] = self.input_values.flatten()
 
-        # Compute the weighted sum using vectorization
-        masked_weights: np.ndarray = self.weights * self.connections
-        sum_without_biases: np.ndarray = np.dot(masked_weights, self.neuron_output)
-
-        # Add biases (element-wise operation)
-        sum_with_biases: np.ndarray = sum_without_biases + self.biases
+        sum_with_biases: np.ndarray = np.dot(self.weights * self.connections, self.neuron_output) + self.biases
 
         # Apply ReLU activation function using NumPy's maximum function
         self.neuron_output = relu(sum_with_biases)
-
-        # Extract the output neurons' activations
-        output_activations: np.ndarray = self.neuron_output[
-            self.n_inputs : self.n_inputs + self.n_outputs
-        ]
-
-        # Apply softmax activation function to the output neurons
-        self.output_values: np.ndarray = softmax(output_activations).reshape(-1, 1)
 
     def mutate(
         self,
