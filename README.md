@@ -11,6 +11,7 @@ Playing around with neurons
   - [Evolution simulation](#evolution-simulation)
     - [Variables](#variables)
   - [TODO](#todo)
+  - [License](#license)
 
 ## Setup
 
@@ -84,3 +85,7 @@ Green | `1.0`
 
 - Optimize performance of creating networks
 - Optimize performance of computing
+
+## License
+
+[MIT License](./LICENSE)
