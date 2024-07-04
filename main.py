@@ -12,9 +12,9 @@ from neurality2.neuralnet import NeuralNet, multi_point_crossover, one_point_cro
 ### Simulation variables
 n_rooms = 10
 n_trapdoors = 0
-n_fakedoors = 4
+n_fakedoors = 2
 n_creatures = 1000
-static_room_layout = False
+static_room_layout = True
 
 ### Simulation variables cont.
 n_generations = 100 # Amount of simulations
@@ -29,7 +29,7 @@ n_connection_perc = 0.0
 
 ### Misc
 save_results = True
-save_network_images = False
+save_network_images = True
 show_realtime_network_preview = True
 hide_empty_rooms = True
 #########################
@@ -62,15 +62,16 @@ for j in range(0, n_generations + 1):
         for i in range(0, n_rooms):
             sim.addRoom(n_trapdoors, n_fakedoors)
 
-    nn: NeuralNet = NeuralNet(1,1,1,0.0)
+    nn: NeuralNet = NeuralNet(1,1,1,0.0, allow_direct_connections=False)
 
     # Create N creatures
     for i in range(0, n_creatures):
         # First generation
         if j == 0:
             if i % n_newnet_creatures_step == 0:
-                nn = NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc)
+                nn = NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, n_connection_perc, allow_direct_connections=False)
             newnn = copy.deepcopy(nn)
+            newnn.neuron_output_history = []
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(newnn)
             sim.addCreature(creature)
@@ -83,7 +84,7 @@ for j in range(0, n_generations + 1):
                 crossover_point = random.random()
                 newnets = one_point_crossover(parent1, parent2, crossover_point)
                 for newnn in newnets:
-                    newnn.mutate(mutation_rate)
+                    newnn.mutate(mutation_rate, allow_direct_connections=False)
                     creature = Creature(n_alldoors, n_alldoors)
                     creature.setNeuralNetwork(newnn)
                     sim.addCreature(creature)
@@ -115,7 +116,7 @@ timeElapsed = round(timeEnd - timeStart, 1)
 if save_results:
 
     # Save data
-    output_dir = f'{timeNow.strftime("%d-%m-%Y_%H-%M-%S")}'
+    output_dir = f'{timeNow.strftime("%Y-%m-%d_%H-%M-%S")}'
 
     if not os.path.isdir('output'):
         os.mkdir('output')
@@ -125,6 +126,7 @@ if save_results:
         
     os.mkdir(f'output/simulations/{output_dir}')
     os.mkdir(f'output/simulations/{output_dir}/images')
+    os.mkdir(f'output/simulations/{output_dir}/activations')
 
     print('\nSaving results')
 
@@ -239,6 +241,8 @@ Room | Creatures | Layout
                         print(f'Saving image of NN-{nnName}')
                         textNetImagesRow += f'\n\n### {nnName}\n\n[Back](#generation-{i})\n\n![](./images/{nnName}.png)'
                         c['creature'].nn.save_network_image(f'output/simulations/{output_dir}/images/{nnName}')
+                        if i == len(generationInfo)-1 and cId == 0:
+                            c['creature'].nn.save_network_neuron_activation_images(f'output/simulations/{output_dir}/activations/{nnName}')
         
         textResults = textResults.replace('<|room_layout|>', textRoomLayout)
         textResults = textResults.replace('<|best_nns|>', textRoomBestNNS)

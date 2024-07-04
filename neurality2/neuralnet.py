@@ -8,13 +8,19 @@ structure and save it as an image."""
 
 import itertools
 import copy
+from turtle import clear
+import networkx as nx
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from networkx.drawing.nx_pydot import graphviz_layout
+from tqdm import tqdm
 from graphviz import Digraph
 import numpy as np
 from .math import relu, softmax
 
 
 def one_point_crossover(
-    parent1: "NeuralNet", parent2: "NeuralNet", point: float
+    parent1: "NeuralNet", parent2: "NeuralNet", point: float, clear_history: bool = True
 ) -> list["NeuralNet"]:
     """
     Perform a one-point crossover operation on two neural networks to produce two offspring.
@@ -53,12 +59,16 @@ def one_point_crossover(
     # Since the weights are a square matrix, we only need to calculate the point once
     child1.weights[neuron_point:, :] = parent2.weights[neuron_point:, :]
     child2.weights[neuron_point:, :] = parent1.weights[neuron_point:, :]
+    
+    if clear_history:
+        child1.clear_history()
+        child2.clear_history()
 
     return [child1, child2]
 
 
 def multi_point_crossover(
-    parent1: "NeuralNet", parent2: "NeuralNet", num_points: int
+    parent1: "NeuralNet", parent2: "NeuralNet", num_points: int, clear_history: bool = True
 ) -> list["NeuralNet"]:
     """
     Perform a multi-point crossover operation on two neural networks to produce two offspring.
@@ -112,6 +122,10 @@ def multi_point_crossover(
         child2.weights[start:end, :] = parent1.weights[start:end, :]
         child1.weights[:, start:end] = parent2.weights[:, start:end]
         child2.weights[:, start:end] = parent1.weights[:, start:end]
+        
+    if clear_history:
+        child1.clear_history()
+        child2.clear_history()
 
     return [child1, child2]
 
@@ -147,7 +161,8 @@ class NeuralNet:
     """
 
     def __init__(
-        self, n_inputs: int, n_outputs: int, n_hidden: int, connection_prob: float = 0.5
+        self, n_inputs: int, n_outputs: int, n_hidden: int, connection_prob: float = 0.5,
+        allow_direct_connections: bool = True
     ) -> None:
         self.n_inputs: int = n_inputs
         self.n_outputs: int = n_outputs
@@ -161,11 +176,13 @@ class NeuralNet:
         self.input_values: np.ndarray = np.zeros((self.n_inputs, 1))
         self.output_values: np.ndarray = np.zeros((self.n_outputs, 1))
         self.neuron_output: np.ndarray = np.zeros(self.n_total_neurons)
+        
+        self.neuron_output_history: list = []
 
-        self.init_connections(connection_prob)
-        self.mutate(1.0, skip_connections=True)
+        self.init_connections(connection_prob, allow_direct_connections=allow_direct_connections)
+        self.mutate(1.0, skip_connections=True, allow_direct_connections=allow_direct_connections)
 
-    def init_connections(self, connection_prob: float):
+    def init_connections(self, connection_prob: float, allow_direct_connections: bool = False):
         """
         Initialize the connections matrix based on a given connection probability.
 
@@ -187,7 +204,11 @@ class NeuralNet:
         for i in range(self.n_inputs, self.n_inputs + self.n_outputs):
             for j in range(0, self.n_total_neurons):
                 self.connections[j, i] = 0
-
+        if not allow_direct_connections:
+            for i in range(self.n_inputs, self.n_inputs + self.n_outputs):
+                for j in range(0, self.n_inputs):
+                    self.connections[i, j] = 0
+        
     def set_input(self, input_array: np.ndarray):
         """
         Set the input values for the network.
@@ -218,7 +239,7 @@ class NeuralNet:
         else:
             return output_activations
 
-    def forward(self):
+    def forward(self, add_to_history: bool = False):
         """
         Propagate the input values through the network to compute the output values.
 
@@ -232,10 +253,19 @@ class NeuralNet:
         # Set input values directly without a loop
         self.neuron_output[: self.n_inputs] = self.input_values.flatten()
 
-        sum_with_biases: np.ndarray = np.dot(self.weights * self.connections, self.neuron_output) + self.biases
+        sum_with_biases: np.ndarray = np.dot(np.multiply(self.weights, self.connections), self.neuron_output.T) + self.biases
 
         # Apply ReLU activation function using NumPy's maximum function
         self.neuron_output = relu(sum_with_biases)
+                
+        if add_to_history:
+            neuron_output_temp = self.neuron_output
+            neuron_output_temp[: self.n_inputs] = self.input_values.flatten()
+            output_activations: np.ndarray = self.neuron_output[
+                self.n_inputs : self.n_inputs + self.n_outputs
+            ]
+            neuron_output_temp[self.n_inputs : self.n_inputs + self.n_outputs] = softmax(output_activations)
+            self.neuron_output_history.append(neuron_output_temp)
 
     def mutate(
         self,
@@ -244,6 +274,7 @@ class NeuralNet:
         skip_biases: bool = False,
         skip_connections: bool = False,
         allow_removing_connections: bool = True,
+        allow_direct_connections: bool = True
     ):
         """
         Mutate the weights, biases, and connections of the network based on a given mutation rate.
@@ -284,8 +315,15 @@ class NeuralNet:
                             self.connections[i, j] = 1 - self.connections[i, j]
                         else:
                             self.connections[i, j] = 1
+        if not allow_direct_connections:
+            for i in range(self.n_inputs, self.n_inputs + self.n_outputs):
+                for j in range(0, self.n_inputs):
+                    self.connections[i, j] = 0
 
     # Visualizing network
+    
+    def clear_history(self):
+        self.neuron_output_history = []
 
     def get_network_architecture(self):
         """Returns an array for further use for `save_network_image` method.
@@ -298,21 +336,21 @@ class NeuralNet:
         input_range = range(0, self.n_inputs)
         input_neuron_ids = []
         for i in input_range:
-            input_neuron_ids.append([f"I{i}", len(input_neuron_ids)])
+            input_neuron_ids.append([f"I{i}", len(input_neuron_ids), i])
         network["layers"].append({"neurons": input_neuron_ids})
 
         # insert output neurons
         output_range = range(self.n_inputs, self.n_inputs + self.n_outputs)
         output_neuron_ids = []
         for i in output_range:
-            output_neuron_ids.append([f"O{i}", len(output_neuron_ids)])
+            output_neuron_ids.append([f"O{i}", len(output_neuron_ids), i])
         network["layers"].append({"neurons": output_neuron_ids})
 
         # insert hidden neurons
         hidden_range = range(self.n_inputs + self.n_outputs, self.n_total_neurons)
         hidden_neuron_ids = []
         for i in hidden_range:
-            hidden_neuron_ids.append([f"H{i}", len(hidden_neuron_ids)])
+            hidden_neuron_ids.append([f"H{i}", len(hidden_neuron_ids), i])
         network["layers"].append({"neurons": hidden_neuron_ids})
 
         # insert connections
@@ -408,3 +446,125 @@ class NeuralNet:
 
         # Render the graph to a PNG file
         dot.render(file_path, view=False, format=image_format, cleanup=True)
+        
+    
+    def save_network_neuron_activation(self, activations: np.ndarray, file_path: str, display_internal_ids: bool = False, image_format: str = "png"):
+        nn_network_arch = self.get_network_architecture()
+        # Create a new directed graph
+        dot = Digraph(comment="Neural Network", strict=True)
+        
+        weight_max = 3.5 #np.max(activations)
+
+        # Customize node styles
+        for layer in nn_network_arch["layers"]:
+            for neuron in layer["neurons"]:
+                linewidth = 4
+                style = "filled"
+                label = None
+                
+                weight = activations[neuron[2]]
+                weightn = abs(weight/weight_max)
+                fillcolor = f"{240.0/360:.3f} {weightn:.3f} 1.000" if activations[neuron[2]] > 0 else f"0.000 {weightn:.3f} 1.000"
+                if "I" in neuron[0]:
+                    weightn = abs(weight/1.0)
+                    fillcolor = f"{240.0/360:.3f} {weightn:.3f} 1.000" if activations[neuron[2]] > 0 else f"0.000 {weightn:.3f} 1.000"
+                    if not display_internal_ids:
+                        label = f"I{neuron[1]}"
+                    dot.node(
+                        neuron[0],
+                        style=style,
+                        shape="circle",
+                        color="darkgreen",
+                        fillcolor=fillcolor,
+                        penwidth=f"{linewidth}",
+                        label=label,
+                    )
+                elif "O" in neuron[0]:
+                    weightn = abs(weight/1.0)
+                    fillcolor = f"{240.0/360:.3f} {weightn:.3f} 1.000" if activations[neuron[2]] > 0 else f"0.000 {weightn:.3f} 1.000"
+                    if not display_internal_ids:
+                        label = f"O{neuron[1]}"
+                    dot.node(
+                        neuron[0],
+                        style=style,
+                        shape="circle",
+                        color="darkorange",
+                        fillcolor=fillcolor,
+                        penwidth=f"{linewidth}",
+                        label=label,
+                    )
+                elif "H" in neuron[0]:
+                    if not display_internal_ids:
+                        label = ""
+                    dot.node(
+                        neuron[0],
+                        style=style,
+                        shape="circle",
+                        color="gray40",
+                        fillcolor=fillcolor,
+                        penwidth=f"{linewidth}",
+                        label=label,
+                    )
+
+        # Customize edge styles
+        for connection in nn_network_arch["connections"]:
+            dot.edge(
+                connection[0], connection[1], color="gray50", penwidth=f"{1}"
+            )
+
+        # Render the graph to a PNG file
+        dot.render(file_path, view=False, format=image_format, cleanup=True)
+    
+    
+    def save_network_neuron_activation_images(self, output_dir: str):
+        for i in tqdm(range(len(self.neuron_output_history)), desc='Saving activations'):
+            actv = self.neuron_output_history[i]
+            self.save_network_neuron_activation(actv, f'{output_dir}/act_{i}')
+
+
+    def save_network_image_networkx(self, output_path):
+        """Visualize the neural network using NetworkX."""
+        G = nx.DiGraph()
+
+        # Add input neurons
+        G.add_nodes_from(range(self.n_inputs), neuron_type='input', subset=2)
+
+        # Add output neurons
+        G.add_nodes_from(range(self.n_inputs, self.n_inputs + self.n_outputs), neuron_type='output', subset=0)
+        
+        # Add hidden neurons
+        G.add_nodes_from(range(self.n_inputs + self.n_outputs, self.n_total_neurons), neuron_type='hidden', subset=1)
+
+        # Add connections as edges
+        for i in range(self.connections.shape[0]):
+            for j in range(self.connections.shape[1]):
+                if self.connections[i, j] == 1:
+                    G.add_edge(j, i, weight=-self.weights[i, j])
+
+        # Draw the graph
+        subset_key = {
+            0: [n for n in G.nodes if G.nodes[n]['subset']==0],
+            1: [n for n in G.nodes if G.nodes[n]['subset']==1],
+            2: [n for n in G.nodes if G.nodes[n]['subset']==2]
+        }
+        # pos = nx.multipartite_layout(G, subset_key=subset_key, scale=-1)
+        # pos = nx.spring_layout(G, k=6, seed=0)
+        pos = graphviz_layout(G, prog='dot')
+        node_colors = ['lightblue' if G.nodes[n]['neuron_type'] == 'input' else
+                        'orange' if G.nodes[n]['neuron_type'] == 'output' else
+                        'lightgrey' for n in G.nodes]
+        nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=300)
+        nx.draw_networkx_labels(G, pos)
+        
+        max_weight = np.amax(self.weights)
+        min_weight = np.amin(self.weights)
+        norm = mpl.colors.Normalize(min_weight, max_weight)
+        colormap = mpl.colormaps['RdBu']
+
+        # Create a list of colors for each edge based on weight
+        edge_colors = [colormap(norm(G.edges[u, v]['weight'])) for u, v in G.edges]
+        nx.draw_networkx_edges(G, pos, connectionstyle='arc3', width=0.85, node_size=300, style='solid', arrowsize=8, arrows=True, arrowstyle='-|>', edge_color=edge_colors)
+
+        plt.axis('off')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close()

@@ -28,12 +28,13 @@ class Creature():
     def update(self) -> None:
         if isinstance(self.nn, neurality2.NeuralNet):
             self.nn.set_input(self.inputValues)
-            self.nn.forward()
-            self.outputValues = self.nn.get_output()
+            self.nn.forward(add_to_history=True)
 
     def getOutputValues(self) -> np.ndarray:
-        return self.outputValues
-
+        if isinstance(self.nn, neurality2.NeuralNet):
+            return self.nn.get_output()
+        else:
+            return np.zeros(self.inputCount)
 
 class DoorType(Enum):
     TRAP = -1.0
@@ -126,8 +127,6 @@ class Simulation():
                             self.creatures[i]['currentRoom'] += 1
                             if self.creatures[i]['currentRoom'] > self.getRoomCount()-1:
                                 self.creatures[i]['won'] = True
-                                self.creatures[i]['fitness'] = self.creatures[i]['currentRoom'] + \
-                                    self.creatures[i]['confidence']
             i += 1
 
     def countCreaturesInRooms(self) -> list[int]:
