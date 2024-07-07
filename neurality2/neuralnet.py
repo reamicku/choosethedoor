@@ -232,7 +232,7 @@ class NeuralNet:
         # Set input values directly without a loop
         self.neuron_output[: self.n_inputs] = self.input_values.flatten()
 
-        sum_with_biases: np.ndarray = np.dot(self.weights * self.connections, self.neuron_output) + self.biases
+        sum_with_biases: np.ndarray = np.dot(np.multiply(self.weights, self.connections), self.neuron_output.T) + self.biases
 
         # Apply ReLU activation function using NumPy's maximum function
         self.neuron_output = relu(sum_with_biases)
