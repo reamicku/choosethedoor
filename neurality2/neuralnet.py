@@ -161,6 +161,8 @@ class NeuralNet:
         self.input_values: np.ndarray = np.zeros((self.n_inputs, 1))
         self.output_values: np.ndarray = np.zeros((self.n_outputs, 1))
         self.neuron_output: np.ndarray = np.zeros(self.n_total_neurons)
+        
+        self.n_hidden_max = 16
 
         self.init_connections(connection_prob)
         self.mutate(1.0, skip_connections=True)
@@ -268,6 +270,8 @@ class NeuralNet:
         shift_chance = 0.75
         shift_max = 0.35
         
+        new_neuron_chance = 0.03
+        
         # Mutate weights
         if not skip_weights:
             for i, weight_matrix in enumerate(self.weights):
@@ -289,6 +293,8 @@ class NeuralNet:
                         self.biases[i] = self.biases[i] + (-shift_max + np.random.rand() * (2 * shift_max))
         
         # Enable/disable connection
+        new_neurons_at_connection_indices = []
+        
         if not skip_connections:
             for i in range(self.n_inputs, self.connections.shape[0]):
                 for j in itertools.chain(
@@ -296,11 +302,62 @@ class NeuralNet:
                     range(self.n_inputs + self.n_outputs, self.n_total_neurons),
                 ):
                     if np.random.rand() < mutation_rate:
-                        if allow_removing_connections:
-                            # flip connection bit
-                            self.connections[i, j] = 1 - self.connections[i, j]
-                        else:
-                            self.connections[i, j] = 1
+                        randval = np.random.rand()
+                        if randval > new_neuron_chance:
+                            if allow_removing_connections:
+                                # flip connection bit
+                                self.connections[i, j] = 1 - self.connections[i, j]
+                            else:
+                                self.connections[i, j] = 1
+                        elif randval < new_neuron_chance \
+                                and self.connections[i, j] == 1 \
+                                and self.n_hidden + len(new_neurons_at_connection_indices) < self.n_hidden_max:
+                            # Add connection indices to a processing list
+                            new_neurons_at_connection_indices.append((i, j))
+        
+        # Create new neurons
+        if len(new_neurons_at_connection_indices) > 0:
+            for con in new_neurons_at_connection_indices:
+                weights_old = self.weights
+                biases_old = self.biases
+                connections_old = self.connections
+                neuron_output_old = self.neuron_output
+                
+                # resize arrays for adding new neuron
+                self.n_hidden += 1
+                self.n_total_neurons += 1
+
+                # restore old values
+                self.weights: np.ndarray = np.zeros((self.n_total_neurons, self.n_total_neurons))
+                self.weights[:weights_old.shape[0], :weights_old.shape[1]] += weights_old
+                
+                self.biases: np.ndarray = np.zeros(self.n_total_neurons)
+                self.biases[:biases_old.shape[0]] += biases_old
+                
+                self.connections: np.ndarray = np.zeros((self.n_total_neurons, self.n_total_neurons))
+                self.connections[:connections_old.shape[0], :connections_old.shape[1]] += connections_old
+                
+                self.neuron_output: np.ndarray = np.zeros(self.n_total_neurons)
+                self.neuron_output[:neuron_output_old.shape[0]] += neuron_output_old
+                
+                # new connection id
+                k = self.n_total_neurons-1
+                
+                i, j = con[0], con[1]
+                print(f"Making neruon @{j}->{k}->{i}; n_hidden={self.n_hidden}")
+                
+                # Remove i<-j connection and remove weight
+                self.connections[i, j] = 0
+                self.weights[i, j] = 0
+                # Add i<-k and k<-j connection
+                self.connections[i, k] = 1
+                self.connections[k, j] = 1
+                # Set i<-k weight to the previous i<-j weight
+                self.weights[i, k] = self.weights[i, j]
+                # Set k<-j weight to 1
+                self.weights[k, j] = 1.0
+                # Set k bias to 0
+                self.biases[k] = 0.0
 
     # Visualizing network
 
