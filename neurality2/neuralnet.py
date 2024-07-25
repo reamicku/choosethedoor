@@ -397,7 +397,7 @@ class NeuralNet:
         """
         
         shift_chance = 0.80
-        shift_max = 0.25
+        shift_max = 0.10
         
         new_neuron_chance = 0.1
         
@@ -407,7 +407,7 @@ class NeuralNet:
                 for j in range(self.weights.shape[1]):
                     if np.random.rand() < mutation_rate:
                         if np.random.rand() < shift_chance:
-                            self.weights[i, j] += (-shift_max + np.random.rand() * (2 * shift_max))
+                            self.weights[i, j] += np.random.normal(self.weights.mean(), self.weights.std() * shift_max)
                         else:
                             self.weights[i, j] = np.random.normal(0, 1)
         
@@ -416,7 +416,7 @@ class NeuralNet:
             for i in range(self.biases.shape[0]):
                 if np.random.rand() < mutation_rate:
                     if np.random.rand() < shift_chance:
-                        self.biases[i] += (-shift_max + np.random.rand() * (2 * shift_max))
+                        self.biases[i] += np.random.normal(self.biases.mean(), self.biases.std() * shift_max)
                     else:
                         self.biases[i] = np.random.normal(0, 1)
         
