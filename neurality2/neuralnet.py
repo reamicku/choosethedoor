@@ -264,14 +264,31 @@ class NeuralNet:
                                                If False, connections can only be added.
                                                Default is True.
         """
+        
+        shift_chance = 0.75
+        shift_max = 0.35
+        
+        # Mutate weights
         if not skip_weights:
             for i, weight_matrix in enumerate(self.weights):
                 if np.random.rand() < mutation_rate:
-                    self.weights[i] = np.random.normal(0, 1, weight_matrix.shape)
+                    # 80% chance of shifting, 20% chance of random value
+                    if np.random.rand() > shift_chance:
+                        self.weights[i] = np.random.normal(0, 1, weight_matrix.shape)
+                    else:
+                        self.weights[i] = self.weights[i] + (-shift_max + np.random.rand() * (2 * shift_max))
+        
+        # Mutate biases
         if not skip_biases:
             for i, bias_vector in enumerate(self.biases):
                 if np.random.rand() < mutation_rate:
-                    self.biases[i] = np.random.normal(0, 1, bias_vector.shape)
+                    # 80% chance of shifting, 20% chance of random value
+                    if np.random.rand() > shift_chance:
+                        self.biases[i] = np.random.normal(0, 1, bias_vector.shape)
+                    else:
+                        self.biases[i] = self.biases[i] + (-shift_max + np.random.rand() * (2 * shift_max))
+        
+        # Enable/disable connection
         if not skip_connections:
             for i in range(self.n_inputs, self.connections.shape[0]):
                 for j in itertools.chain(
