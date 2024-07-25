@@ -11,6 +11,7 @@ Playing around with neurons
   - [Evolution simulation](#evolution-simulation)
     - [Variables](#variables)
   - [TODO](#todo)
+  - [Resources](#resources)
   - [License](#license)
 
 ## Setup
@@ -18,16 +19,16 @@ Playing around with neurons
 Install dependencies:
 
 ```bash
-sudo apt install python3.10 graphviz
+sudo apt install python3 graphviz
 ```
 
 Create python virtual environment:
 
 ```bash
-python3.10 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python3.10 main.py
+python3 main.py
 ```
 
 ## Architecture
@@ -83,8 +84,11 @@ Green | `1.0`
 
 ## TODO
 
-- Optimize performance of creating networks
-- Optimize performance of computing
+[TODO](./TODO.md)
+
+## Resources
+
+[NEAT - Introduction](https://www.youtube.com/watch?v=VMQOa4-rVxE)
 
 ## License
 
