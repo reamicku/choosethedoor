@@ -92,6 +92,10 @@ class Simulation():
             'fitness': 0.0
         }
         self.creatures.append(data)
+    
+    def mutateCreatures(self, mutation_rate: float = 0.0):
+        for i, el in enumerate(self.creatures):
+            self.creatures[i]['creature'].nn.mutate(mutation_rate=mutation_rate)
 
     def step(self, chooseDoor=False):
         i = 0
@@ -115,6 +119,7 @@ class Simulation():
                         self.creatures[i]['decisions']
                     self.creatures[i]['fitness'] = self.creatures[i]['currentRoom'] + \
                         self.creatures[i]['confidence']
+                    self.creatures[i]['fitness'] -= 0.01*self.creatures[i]['creature'].nn.n_hidden
 
                     chosenDoorId = np.argmax(output)
                     if chosenDoorId != realDoorId:
@@ -128,6 +133,7 @@ class Simulation():
                                 self.creatures[i]['won'] = True
                                 self.creatures[i]['fitness'] = self.creatures[i]['currentRoom'] + \
                                     self.creatures[i]['confidence']
+                                self.creatures[i]['fitness'] -= 0.01*self.creatures[i]['creature'].nn.n_hidden
             i += 1
 
     def countCreaturesInRooms(self) -> list[int]:

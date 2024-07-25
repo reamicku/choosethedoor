@@ -6,6 +6,7 @@ are initialized randomly and can be mutated over time. The module supports forwa
 to compute the output given an input array, and it provides methods to visualize the network
 structure and save it as an image."""
 
+from typing import Union
 import itertools
 import copy
 from graphviz import Digraph
@@ -116,6 +117,135 @@ def multi_point_crossover(
     return [child1, child2]
 
 
+def uniform_crossover(
+    p1: "NeuralNet", p2: "NeuralNet", p1f: float = 0.0, p2f: float = 0.0
+) -> "NeuralNet":
+    assert p1.neat_pool == p2.neat_pool, "Parents are not in the same NEATPool"
+    assert p1.neat_pool != None, "Parent 1 is not in a NEATPool"
+    assert p2.neat_pool != None, "Parent 2 is not in a NEATPool"
+    
+    neat_pool = p1.neat_pool
+    
+    if p1.neat_pool != None and p2.neat_pool != None:
+        p1_innovations = p1.neat_pool.get_innovations(p1.connections)
+        p1_innovations.sort()
+        
+        p2_innovations = p2.neat_pool.get_innovations(p2.connections)
+        p2_innovations.sort()
+    
+    if len(p1_innovations) == 0 and len(p2_innovations) == 0:
+        if np.random.rand() > 0.5:
+            return p1
+        else:
+            return p2
+    
+    if len(p1_innovations) == 0:
+        max_innovation_id = p2_innovations[-1]
+    elif len(p2_innovations) == 0:
+        max_innovation_id = p1_innovations[-1]
+    else:
+        max_innovation_id = max(p1_innovations[-1], p2_innovations[-1])
+    
+    fitter_parent = p1
+    if p1f > p2f:
+        fitter_parent_id = 1
+    elif p1f < p2f:
+        fitter_parent_id = 2
+    else:
+        fitter_parent_id = np.random.randint(1, 2)
+    
+    if fitter_parent_id == 1:
+        fitter_parent = p1  
+    elif fitter_parent_id == 2:
+        fitter_parent = p2
+    
+    n_hidden_new = max(p1.n_hidden, p2.n_hidden)
+        
+    child = NeuralNet(n_inputs=p1.n_inputs, n_outputs=p1.n_outputs, n_hidden=n_hidden_new, connection_prob=0.0, neat_pool=neat_pool, zeros_init=True)
+    
+    # print(max_innovation_id, excess_threshold)
+    for id in range(0, max_innovation_id):
+        is_in_p1i = id in p1_innovations
+        is_in_p2i = id in p2_innovations
+        
+        conn = None
+        current_parent = fitter_parent
+        
+        if is_in_p1i and is_in_p2i:
+            conn = neat_pool.get_connection(id)
+            if np.random.rand() > 0.5:
+                current_parent = p1
+            else:
+                current_parent = p2
+        else:
+            current_parent = fitter_parent
+            if fitter_parent_id == 1:
+                if is_in_p1i:
+                    conn = neat_pool.get_connection(id)
+            elif fitter_parent_id == 2:
+                if is_in_p2i:
+                    conn = neat_pool.get_connection(id)
+        
+        if conn != None:
+            i, j = conn[0], conn[1]
+            
+            child.connections[i, j] = 1
+            child.weights[i, j] = current_parent.weights[i, j]
+            child.biases[j] = current_parent.biases[j]
+    
+    return child
+
+
+class NEATPool:
+    def __init__(self) -> None:
+        self.innovations: dict = {}
+        self.n_innovations: int = 0
+    
+    def __str__(self):
+        tuples_list = list(self.innovations.values())
+        numpy_array = np.array(tuples_list)
+        return numpy_array.__str__()
+        
+    # Check if a connection exists, returns True or False.
+    def exists(self, connection: tuple[int, int]) -> bool:
+        return connection in self.innovations.values()
+    
+    # Returns a connection at `i`. Returns False if doesn't exist.
+    def get_connection(self, id: int) -> Union[tuple[int, int], None]:
+        if id in self.innovations:
+            return self.innovations[id]
+        else:
+            return None
+    
+    # Returns connection's id. Returns False if doesn't exist.
+    def get_id(self, connection: tuple[int, int]) -> Union[int, None]:
+        try:
+            key = next(key for key, value in self.innovations.items() if value == connection)
+        except StopIteration as e:
+            return None
+        return key
+    
+    # Puts a new connection into the pool. Returns its `id` or False if already exists.
+    def attempt_put(self, connection: tuple[int, int]) -> Union[int, bool]:
+        if not self.exists(connection):
+            self.innovations.update({self.n_innovations: connection})
+            self.n_innovations += 1
+            return self.n_innovations - 1
+        else:
+            return False
+        
+    def get_innovations(self, connections: np.ndarray) -> list[int]:
+        innovation_array: list[int] = []
+        for i in range(0, connections.shape[0]):
+            for j in range(0, connections.shape[1]):
+                if connections[i, j] == 1:
+                    innovation_id = self.get_id((i, j))
+                    if innovation_id != None:
+                        innovation_array.append(innovation_id)                    
+        
+        return innovation_array
+
+
 class NeuralNet:
     """
     NeuralNet class represents a simple neural network with one hidden layer.
@@ -147,7 +277,7 @@ class NeuralNet:
     """
 
     def __init__(
-        self, n_inputs: int, n_outputs: int, n_hidden: int, connection_prob: float = 0.5
+        self, n_inputs: int, n_outputs: int, n_hidden: int, connection_prob: float = 0.0, neat_pool: Union[NEATPool, None] = None, zeros_init: bool = False
     ) -> None:
         self.n_inputs: int = n_inputs
         self.n_outputs: int = n_outputs
@@ -162,12 +292,15 @@ class NeuralNet:
         self.output_values: np.ndarray = np.zeros((self.n_outputs, 1))
         self.neuron_output: np.ndarray = np.zeros(self.n_total_neurons)
         
-        self.n_hidden_max = 16
+        self.n_hidden_max = 10
+        
+        self.neat_pool = neat_pool
 
-        self.init_connections(connection_prob)
-        self.mutate(1.0, skip_connections=True)
+        if not zeros_init:
+            self.init_connections(connection_prob)
+            self.mutate(1.0, skip_connections=True)
 
-    def init_connections(self, connection_prob: float):
+    def init_connections(self, connection_prob: float = 0.0):
         """
         Initialize the connections matrix based on a given connection probability.
 
@@ -245,7 +378,6 @@ class NeuralNet:
         skip_weights: bool = False,
         skip_biases: bool = False,
         skip_connections: bool = False,
-        allow_removing_connections: bool = True,
     ):
         """
         Mutate the weights, biases, and connections of the network based on a given mutation rate.
@@ -262,35 +394,31 @@ class NeuralNet:
             skip_weights (bool): If True, weights will not be mutated. Default is False.
             skip_biases (bool): If True, biases will not be mutated. Default is False.
             skip_connections (bool): If True, connections will not be mutated. Default is False.
-            allow_removing_connections (bool): If True, existing connections can be removed.
-                                               If False, connections can only be added.
-                                               Default is True.
         """
         
-        shift_chance = 0.75
-        shift_max = 0.35
+        shift_chance = 0.80
+        shift_max = 0.25
         
-        new_neuron_chance = 0.03
+        new_neuron_chance = 0.1
         
         # Mutate weights
         if not skip_weights:
-            for i, weight_matrix in enumerate(self.weights):
-                if np.random.rand() < mutation_rate:
-                    # 80% chance of shifting, 20% chance of random value
-                    if np.random.rand() > shift_chance:
-                        self.weights[i] = np.random.normal(0, 1, weight_matrix.shape)
-                    else:
-                        self.weights[i] = self.weights[i] + (-shift_max + np.random.rand() * (2 * shift_max))
+            for i in range(self.weights.shape[0]):
+                for j in range(self.weights.shape[1]):
+                    if np.random.rand() < mutation_rate:
+                        if np.random.rand() < shift_chance:
+                            self.weights[i, j] += (-shift_max + np.random.rand() * (2 * shift_max))
+                        else:
+                            self.weights[i, j] = np.random.normal(0, 1)
         
         # Mutate biases
         if not skip_biases:
-            for i, bias_vector in enumerate(self.biases):
+            for i in range(self.biases.shape[0]):
                 if np.random.rand() < mutation_rate:
-                    # 80% chance of shifting, 20% chance of random value
-                    if np.random.rand() > shift_chance:
-                        self.biases[i] = np.random.normal(0, 1, bias_vector.shape)
+                    if np.random.rand() < shift_chance:
+                        self.biases[i] += (-shift_max + np.random.rand() * (2 * shift_max))
                     else:
-                        self.biases[i] = self.biases[i] + (-shift_max + np.random.rand() * (2 * shift_max))
+                        self.biases[i] = np.random.normal(0, 1)
         
         # Enable/disable connection
         new_neurons_at_connection_indices = []
@@ -304,12 +432,11 @@ class NeuralNet:
                     if np.random.rand() < mutation_rate:
                         randval = np.random.rand()
                         if randval > new_neuron_chance:
-                            if allow_removing_connections:
-                                # flip connection bit
-                                self.connections[i, j] = 1 - self.connections[i, j]
-                            else:
-                                self.connections[i, j] = 1
-                        elif randval < new_neuron_chance \
+                            self.connections[i, j] = 1 - self.connections[i, j]
+                            if self.connections[i, j] == 1 and self.neat_pool != None:
+                                self.weights[i, j] = np.random.normal(0, 1)
+                                self.neat_pool.attempt_put((i, j))
+                        elif randval <= new_neuron_chance \
                                 and self.connections[i, j] == 1 \
                                 and self.n_hidden + len(new_neurons_at_connection_indices) < self.n_hidden_max:
                             # Add connection indices to a processing list
@@ -344,7 +471,6 @@ class NeuralNet:
                 k = self.n_total_neurons-1
                 
                 i, j = con[0], con[1]
-                print(f"Making neruon @{j}->{k}->{i}; n_hidden={self.n_hidden}")
                 
                 # Remove i<-j connection and remove weight
                 self.connections[i, j] = 0
@@ -358,6 +484,10 @@ class NeuralNet:
                 self.weights[k, j] = 1.0
                 # Set k bias to 0
                 self.biases[k] = 0.0
+                
+                if self.neat_pool != None:
+                    self.neat_pool.attempt_put((i, k))
+                    self.neat_pool.attempt_put((k, j))
 
     # Visualizing network
 
