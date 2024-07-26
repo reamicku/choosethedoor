@@ -18,10 +18,10 @@ static_room_layout = True
 
 ### Simulation variables cont.
 n_generations = 100 # Amount of simulations
-n_neuralnet_processing_steps = 2 # Neural net gets updated N times before making a decision
+n_neuralnet_processing_steps = 3 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
 n_reproduced = n_creatures//50 # Select N best networks and use them for reproduction (dividable by 2!!!)
-mutation_rate = 0.1 # Mutation rate every simulation
+mutation_rate = 0.01 # Mutation rate every simulation
 
 ### Neural Network
 n_internal_neurons = 0
