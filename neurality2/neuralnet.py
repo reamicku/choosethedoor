@@ -397,7 +397,7 @@ class NeuralNet:
         """
         
         shift_chance = 0.80
-        shift_max = 0.10
+        shift_max = 0.20
         
         new_neuron_chance = 0.1
         
@@ -472,14 +472,14 @@ class NeuralNet:
                 
                 i, j = con[0], con[1]
                 
-                # Remove i<-j connection and remove weight
+                # Remove i<-j connection
                 self.connections[i, j] = 0
-                self.weights[i, j] = 0
                 # Add i<-k and k<-j connection
                 self.connections[i, k] = 1
                 self.connections[k, j] = 1
-                # Set i<-k weight to the previous i<-j weight
+                # Set i<-k weight to the previous i<-j weight and reset i<-j weight
                 self.weights[i, k] = self.weights[i, j]
+                self.weights[i, j] = 0
                 # Set k<-j weight to 1
                 self.weights[k, j] = 1.0
                 # Set k bias to 0
