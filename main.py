@@ -11,17 +11,17 @@ from neurality2.neuralnet import NEATPool, NeuralNet, multi_point_crossover, one
 ##### Define values #####
 ### Simulation variables
 n_rooms = 10
-n_trapdoors = 0
-n_fakedoors = 4
+n_trapdoors = 4
+n_fakedoors = 0
 n_creatures = 1000
 static_room_layout = True
 
 ### Simulation variables cont.
 n_generations = 100 # Amount of simulations
-n_neuralnet_processing_steps = 4 # Neural net gets updated N times before making a decision
+n_neuralnet_processing_steps = 2 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
 n_reproduced = n_creatures//50 # Select N best networks and use them for reproduction (dividable by 2!!!)
-mutation_rate = 0.01 # Mutation rate every simulation
+mutation_rate = 0.1 # Mutation rate every simulation
 
 ### Neural Network
 n_internal_neurons = 0
@@ -101,6 +101,9 @@ for j in range(0, n_generations + 1):
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(child_nn)
             sim.addCreature(creature)
+    
+    # Mutate creatures
+    sim.mutateCreatures(mutation_rate=mutation_rate)
 
     # Simulate
     for i in tqdm(range(0, n_rooms*n_neuralnet_processing_steps+1), desc='Simulating'):
@@ -110,7 +113,6 @@ for j in range(0, n_generations + 1):
         sim.step(chooseDoor=chooseDoor)
 
     sim.printSimulationState()
-    sim.mutateCreatures(mutation_rate=mutation_rate)
     bestCreatures = sim.getBestNCreatures(n_reproduced)
     
     genInfoRow = {
