@@ -173,7 +173,7 @@ def uniform_crossover(
         
         if is_in_p1i and is_in_p2i:
             conn = neat_pool.get_connection(id)
-            if np.random.rand() > 0.5:
+            if p1f > p2f:
                 current_parent = p1
             else:
                 current_parent = p2
