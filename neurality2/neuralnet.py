@@ -396,10 +396,10 @@ class NeuralNet:
             skip_connections (bool): If True, connections will not be mutated. Default is False.
         """
         
-        shift_chance = 0.80
-        shift_max = 0.20
+        shift_chance = 0.65
+        shift_max = 0.30
         
-        new_neuron_chance = 0.1
+        new_neuron_chance = 0.2
         
         # Mutate weights
         if not skip_weights:

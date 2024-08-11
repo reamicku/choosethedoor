@@ -10,17 +10,17 @@ from neurality2.neuralnet import NEATPool, NeuralNet, multi_point_crossover, one
 
 ##### Define values #####
 ### Simulation variables
-n_rooms = 10
-n_trapdoors = 4
-n_fakedoors = 0
+n_rooms = 20
+n_trapdoors = 3
+n_fakedoors = 3
 n_creatures = 1000
 static_room_layout = True
 
 ### Simulation variables cont.
-n_generations = 100 # Amount of simulations
+n_generations = 200 # Amount of simulations
 n_neuralnet_processing_steps = 3 # Neural net gets updated N times before making a decision
 n_newnet_creatures_step = 1 # 1 # Create new nn every N creatures
-n_reproduced = n_creatures//50 # Select N best networks and use them for reproduction (dividable by 2!!!)
+n_reproduced = n_creatures//10 # Select N best networks and use them for reproduction (dividable by 2!!!)
 mutation_rate = 0.01 # Mutation rate every simulation
 
 ### Neural Network
@@ -31,7 +31,7 @@ n_connection_perc = 0.0
 save_results = True
 save_network_images = False
 show_realtime_network_preview = True
-hide_empty_rooms = True
+hide_empty_rooms = False
 #########################
 
 
@@ -69,7 +69,7 @@ for j in range(0, n_generations + 1):
         best_creatures_fitdict = {}
         for i in range(0, len(bestCreatures)):
             fit = bestCreatures[i]['fitness']
-            best_creatures_fitdict.update({i: fit*fit})
+            best_creatures_fitdict.update({i: abs(fit**8)})
             
         best_creatures_keys = list(best_creatures_fitdict.keys())
         best_creatures_values = list(best_creatures_fitdict.values())
@@ -80,9 +80,7 @@ for j in range(0, n_generations + 1):
     for i in range(0, n_creatures):
         # First generation
         if j == 0:
-            if i % n_newnet_creatures_step == 0:
-                nn = NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, connection_prob=n_connection_perc)
-            newnn = copy.deepcopy(nn)
+            newnn = NeuralNet(n_alldoors, n_alldoors, n_internal_neurons, connection_prob=n_connection_perc)
             newnn.neat_pool = neatpool
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(newnn)
@@ -101,9 +99,6 @@ for j in range(0, n_generations + 1):
             creature = Creature(n_alldoors, n_alldoors)
             creature.setNeuralNetwork(child_nn)
             sim.addCreature(creature)
-    
-    # Mutate creatures
-    sim.mutateCreatures(mutation_rate=mutation_rate)
 
     # Simulate
     for i in tqdm(range(0, n_rooms*n_neuralnet_processing_steps+1), desc='Simulating'):
@@ -111,8 +106,11 @@ for j in range(0, n_generations + 1):
         if i==0:
             chooseDoor = False
         sim.step(chooseDoor=chooseDoor)
+        
+    # Mutate creatures
+    sim.mutateCreatures(mutation_rate=mutation_rate)
 
-    sim.printSimulationState()
+    sim.printSimulationState(hide_empty_rooms=hide_empty_rooms)
     bestCreatures = sim.getBestNCreatures(n_reproduced)
     
     genInfoRow = {
