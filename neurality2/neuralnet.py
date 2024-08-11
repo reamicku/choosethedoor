@@ -477,9 +477,8 @@ class NeuralNet:
                 # Add i<-k and k<-j connection
                 self.connections[i, k] = 1
                 self.connections[k, j] = 1
-                # Set i<-k weight to the previous i<-j weight and reset i<-j weight
+                # Set i<-k weight to the previous i<-j weight
                 self.weights[i, k] = self.weights[i, j]
-                self.weights[i, j] = 0
                 # Set k<-j weight to 1
                 self.weights[k, j] = 1.0
                 # Set k bias to 0
