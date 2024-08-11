@@ -7,12 +7,14 @@ from tqdm import tqdm
 from datetime import datetime
 import pandas as pd
 
+from neurality2.neuralnet import NeuralNet
+
 
 class Creature():
     def __init__(self, inputCount, outputCount) -> None:
         self.inputCount = inputCount
         self.outputCount = outputCount
-        self.nn = None
+        self.nn: NeuralNet
         self.inputValues: np.ndarray = np.zeros(self.inputCount)
         self.outputValues: np.ndarray = np.zeros(self.outputCount)
 
@@ -26,12 +28,11 @@ class Creature():
         self.inputValues: np.ndarray = array
 
     def update(self) -> None:
-        if isinstance(self.nn, neurality2.NeuralNet):
-            self.nn.set_input(self.inputValues)
-            self.nn.forward()
-            self.outputValues = self.nn.get_output()
+        self.nn.set_input(self.inputValues)
+        self.nn.forward()
 
     def getOutputValues(self) -> np.ndarray:
+        self.outputValues = self.nn.get_output()
         return self.outputValues
 
 
@@ -98,10 +99,8 @@ class Simulation():
             self.creatures[i]['creature'].nn.mutate(mutation_rate=mutation_rate)
 
     def step(self, chooseDoor=False):
-        i = 0
-
         self.room_size = len(self.rooms[0])
-        for el in self.creatures:
+        for i in range(0, len(self.creatures)):
             if (not self.creatures[i]['won']) and (not self.creatures[i]['dead']):
                 rId = self.creatures[i]['currentRoom']
                 self.creatures[i]['creature'].setInputValues(
@@ -145,14 +144,14 @@ class Simulation():
             out[roomId] += 1
         return out
 
-    def printSimulationState(self):
+    def printSimulationState(self, hide_empty_rooms = True):
         creaturesInRooms = self.countCreaturesInRooms()
         for i in range(self.getRoomCount()+1, 0, -1):
             n = creaturesInRooms[i-1]
             if i == self.getRoomCount()+1:
                 print(f'Exit  \tCreatures: {n}')
             else:
-                if n > 0:
+                if n > 0 or not hide_empty_rooms:
                     print(f'Room {i}\tCreatures: {n}')
 
     def getCreaturesIDsInRoom(self, roomId: int) -> list[int]:
